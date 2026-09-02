@@ -244,7 +244,10 @@ class SongSelect{
 			}else if(assets.customSongs){
 				this.selectedSong = Math.min(Math.max(0, assets.customSelected), this.songs.length - 1)
 			}else if((!p2.session || fadeIn) && "selectedSong" in localStorage){
-				this.selectedSong = Math.min(Math.max(0, localStorage["selectedSong"] |0), this.songs.length - 1)
+				var restored = this.restorePlace()
+				this.selectedSong = restored === null
+					? Math.min(Math.max(0, localStorage["selectedSong"] |0), this.songs.length - 1)
+					: restored
 			}
 			if(!this.showWarning){
 				this.playSound(songIdIndex !== -1 ? "v_diffsel" : "v_songsel")
@@ -1575,13 +1578,8 @@ class SongSelect{
 			if(assets.customSongs){
 				assets.customSelected = this.selectedSong
 				localStorage["customSelected"] = this.selectedSong
-			}else if(!p2.session && !this.navigator.path.length){
-				// Only meaningful at the root: inside a folder this is an
-				// index into that folder's listing, which the next launch
-				// would apply to a different one.
-				try{
-					localStorage["selectedSong"] = this.selectedSong
-				}catch(e){}
+			}else if(!p2.session){
+				this.rememberPlace()
 			}
 			
 			if(this.songs[this.selectedSong].action !== "back"){
@@ -1727,6 +1725,47 @@ class SongSelect{
 	// Random and Search both come back through toSelectDifficulty with a
 	// real song, and that selection is what syncs. Folder and back send a
 	// message of their own carrying the path.
+	/*
+	 * Where the cursor is, in a form that survives leaving song select.
+	 *
+	 * The index alone means nothing: it is a position in whichever listing
+	 * was open, and the next visit starts at the root. So the folder path
+	 * goes with it -- finishing a song should put you back on that song,
+	 * in the folder it was in, not at the top of the wheel.
+	 */
+	rememberPlace(){
+		try{
+			localStorage["selectedSong"] = this.selectedSong
+			localStorage["selectedPath"] = JSON.stringify(this.navigator.pathIds())
+		}catch(e){}
+	}
+	
+	/*
+	 * Walk back to the remembered folder, if there is one and it still
+	 * exists. Returns the index to select, or null to leave it to the
+	 * caller's own default.
+	 */
+	restorePlace(){
+		var path
+		try{
+			path = JSON.parse(localStorage["selectedPath"] || "[]")
+		}catch(e){
+			return null
+		}
+		if(!Array.isArray(path) || !path.length){
+			return null
+		}
+		// A folder that has since gone -- a genre emptied, a favourite
+		// removed -- leaves the navigator at the root rather than
+		// half way down a path that no longer exists.
+		if(!this.navigator.goToPath(path)){
+			return null
+		}
+		this.songs = this.navigator.items
+		var index = localStorage["selectedSong"] | 0
+		return Math.min(Math.max(0, index), this.songs.length - 1)
+	}
+	
 	entryHandlesSessionItself(song){
 		return song.action === "random" || song.action === "search"
 			|| song.action === "folder" || song.action === "back"
@@ -1976,8 +2015,8 @@ class SongSelect{
 			if(assets.customSongs){
 				assets.customSelected = this.selectedSong
 				localStorage["customSelected"] = this.selectedSong
-			}else if(!this.navigator.path.length){
-				localStorage["selectedSong"] = this.selectedSong
+			}else{
+				this.rememberPlace()
 			}
 			localStorage["selectedDiff"] = difficulty + this.diffOptions.length
 		}catch(e){}
