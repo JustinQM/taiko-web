@@ -302,6 +302,12 @@ class SettingsView{
 		
 		var content = this.getElement("view-content")
 		this.items = []
+		// this.items is a positional array, but getValue is called with a
+		// settings key. That only lines up for plugin settings, which
+		// arrive as an array so their keys are "0", "1", ... For
+		// settings.items, an object keyed by name, this.items[name] is
+		// undefined. Keep a lookup by id so both work.
+		this.itemsById = {}
 		this.selected = 0
 		for(let i in this.settingsItems){
 			var current = this.settingsItems[i]
@@ -380,6 +386,7 @@ class SettingsView{
 				settingBox.classList.add("selected")
 			}
 			this.items.push(outputObject)
+			this.itemsById[i] = outputObject
 			this.getValue(i, valueDiv)
 		}
 		this.items.push({
@@ -598,14 +605,14 @@ class SettingsView{
 			})
 		}else if(current.type === "number"){
 			var mul = Math.pow(10, current.fixedPoint || 0)
-			this.items[name].value = value * mul
+			this.itemsById[name].value = value * mul
 			value = Intl.NumberFormat(strings.intl, current.sign ? {
 				signDisplay: "always"
 			} : undefined).format(value)
 			if(current.format || current.format_lang){
 				value = this.getLocalTitle(current.format, current.format_lang).replace("%s", value)
 			}
-			this.items[name].valueText.data = value
+			this.itemsById[name].valueText.data = value
 			return
 		}
 		valueDiv.innerText = value
@@ -1196,6 +1203,7 @@ class SettingsView{
 		delete this.tutorialTitle
 		delete this.endButton
 		delete this.items
+		delete this.itemsById
 		delete this.gamepadSettings
 		delete this.gamepadTitle
 		delete this.gamepadEndButton
