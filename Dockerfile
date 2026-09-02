@@ -26,6 +26,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 
+# assets.js requires 33 images upstream references but does not ship. The
+# loader treats a 404 on any of them as fatal, so without this a clean
+# checkout stalls at 45% and never reaches the title screen. The overlay
+# image copies real artwork over these afterwards.
+RUN python3 tools/make-placeholders.py
+
 # version.json is the client's asset cache key and is generated from git,
 # which is not in the build context. build.sh writes it before building;
 # this fallback keeps a bare `podman build .` working for local use.
