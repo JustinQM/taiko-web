@@ -253,6 +253,9 @@ class Loader{
 			}
 			
 			settings = new Settings()
+			// The audio graph is built above, before settings exist, so
+			// the stored volume is pushed into it here.
+			settings.applyVolume()
 			pageEvents.setKbd()
 			scoreStorage = new ScoreStorage()
 			favorites = new SongList("favorites")

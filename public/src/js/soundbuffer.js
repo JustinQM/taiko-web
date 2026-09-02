@@ -13,6 +13,8 @@
 			window.addEventListener(type, this.pageClickHandler)
 		})
 		this.gainList = []
+		// Applied over every gain; the settings screen drives it.
+		this.masterVolume = 1
 	}
 	load(file, gain){
 		var decoder = file.name.endsWith(".ogg") ? this.oggDecoder : this.audioDecoder
@@ -28,6 +30,18 @@
 		var gain = new SoundGain(this, channel)
 		this.gainList.push(gain)
 		return gain
+	}
+	/*
+	 * A single multiplier over every gain, so one setting can turn the
+	 * whole game down without disturbing the balance between music,
+	 * effects and previews that the rest of the code sets up.
+	 */
+	setMasterVolume(amount){
+		this.masterVolume = Math.min(1, Math.max(0, amount))
+		for(var i = 0; i < this.gainList.length; i++){
+			var gain = this.gainList[i]
+			gain.setVolume(gain.volume)
+		}
 	}
 	setCrossfade(gain1, gain2, median){
 		if(!Array.isArray(gain1)){
@@ -100,8 +114,14 @@ class SoundGain{
 		return this.soundBuffer.convertTime(time, absolute)
 	}
 	setVolume(amount){
-		this.gainNode.gain.value = amount * amount
 		this.volume = amount
+		this.gainNode.gain.value = this.output(amount)
+	}
+	// What a volume of `amount` actually comes out as: squared, because
+	// loudness is not linear in the slider, and scaled by the master.
+	output(amount){
+		var master = this.soundBuffer.masterVolume
+		return amount * amount * (master === undefined ? 1 : master)
 	}
 	setVolumeMul(amount){
 		this.setVolume(amount * this.defaultVol)
@@ -110,10 +130,10 @@ class SoundGain{
 		this.setVolume(Math.sqrt(Math.sin(Math.PI / 2 * amount)))
 	}
 	fadeIn(duration, time, absolute){
-		this.fadeVolume(0, this.volume * this.volume, duration, time, absolute)
+		this.fadeVolume(0, this.output(this.volume), duration, time, absolute)
 	}
 	fadeOut(duration, time, absolute){
-		this.fadeVolume(this.volume * this.volume, 0, duration, time, absolute)
+		this.fadeVolume(this.output(this.volume), 0, duration, time, absolute)
 	}
 	fadeVolume(vol1, vol2, duration, time, absolute){
 		time = this.convertTime(time, absolute)

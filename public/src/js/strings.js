@@ -1106,6 +1106,15 @@ var translations = {
 				ko: "북 소리"
 			}
 		},
+		volume: {
+			name: {
+				ja: "音量",
+				en: "Volume",
+				cn: "音量",
+				tw: "音量",
+				ko: "음량"
+			}
+		},
 		songSelectSpeed: {
 			name: {
 				ja: "曲選択スクロール速度",

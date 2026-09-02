@@ -55,6 +55,14 @@ class Settings{
 					"drumSounds": true
 				}
 			},
+			volume: {
+				type: "number",
+				default: 70,
+				min: 0,
+				max: 100,
+				step: 5,
+				format: "%s%"
+			},
 			songSelectSpeed: {
 				type: "number",
 				// 1x is YataiDON's 166ms per step. The old default of 2x
@@ -151,6 +159,12 @@ class Settings{
 	}
 	setItem(name, value){
 		this.storage[name] = value
+		// Applied here rather than from the settings screen so it also
+		// follows the Default button, which writes every item back to null
+		// without going through the screen's own handler.
+		if(name === "volume"){
+			this.applyVolume()
+		}
 		try{
 			if(name === "language"){
 				if(value){
@@ -165,6 +179,16 @@ class Settings{
 				this.storage.language = language
 			}
 		}catch(e){}
+	}
+	/*
+	 * Push the volume setting into the audio graph. Safe to call before
+	 * the sound buffer exists, which happens while the loader is still
+	 * putting things together.
+	 */
+	applyVolume(){
+		if(typeof snd !== "undefined" && snd && snd.buffer){
+			snd.buffer.setMasterVolume(this.getItem("volume") / 100)
+		}
 	}
 	getLang(){
 		if("languages" in navigator){
