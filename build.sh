@@ -16,6 +16,10 @@ ENGINE="${ENGINE:-podman}"
 
 info() { printf '\033[36m::\033[0m %s\n' "$*"; }
 
+# This repo is public and must never carry game assets; see the script.
+info "checking for asset material"
+tools/check-no-assets.sh
+
 # version.json is the client's asset cache key. It has to differ between
 # builds or browsers keep serving stale JS out of the HTTP cache and
 # IndexedDB; BUILD_TAG makes it do so even when the commit has not moved.
