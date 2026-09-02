@@ -53,3 +53,18 @@ config.py
 public/assets/song_skins
 .venv
 public/src/js/plugin
+
+# ---- deployment / local dev (mia-taiko-web step 1) ----
+# jj snapshots the working copy on every command, so generated files are
+# ignored here before anything creates them.
+.direnv/
+result
+result-*
+.env
+docker-compose.override.yml
+*.archive
+*.dump
+__pycache__/
+# runtime plugin drop directory; the loader is being removed (task 16) but
+# upstream also ignores public/src/js/plugin, and this is its sibling
+public/src/plugins/
