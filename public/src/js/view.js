@@ -1,4 +1,26 @@
 ﻿class View{
+	/*
+	 * The ending animation's timings, all from the skin's own
+	 * Graphics/game/animation.json and skin_config.json rather than
+	 * guessed. Times are milliseconds from the moment the music has
+	 * finished fading, which is also when the clear or fail sound plays.
+	 */
+	static ENDING = {
+		// the sticks start 58px apart and sweep 200px further each
+		stickRest: 29,
+		stickSweep: 200,
+		// their centre sits a little below the panel's
+		stickY: 6,
+		// the five pieces of a clear are spaced by this, not by their width
+		pieceSpacing: 60,
+		highlightDelay: 450,
+		highlightFade: 183,
+		// a full combo lifts the panel once its highlight has landed
+		fcLiftDelay: 650,
+		// and everything else follows: fans, the second sweep, the lift
+		fanStart: 783
+	}
+	
 	constructor(...args){
 		this.init(...args)
 	}
@@ -1465,13 +1487,16 @@
 		var centreX = (slot.paddingLeft + winW) / 2
 		var centreY = slot.y
 		
+		// The skin's own order: the panel, then its highlight, then the
+		// sticks over the top of both. The fans belong to the full combo
+		// animation only -- a plain clear has none.
 		ctx.save()
-		this.drawEndingFans(ctx, elapsed, centreX, centreY)
 		this.drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY)
-		this.drawEndingSticks(ctx, elapsed, centreX, centreY)
 		if(full){
+			this.drawEndingFans(ctx, elapsed, centreX, centreY)
 			this.drawEndingConfetti(ctx, elapsed, centreX, centreY)
 		}
+		this.drawEndingSticks(ctx, elapsed, full, centreX, centreY)
 		ctx.restore()
 	}
 	
@@ -1502,13 +1527,22 @@
 			x - sheet.w / 2, y - sheet.h / 2, sheet.w, sheet.h)
 	}
 	
+	/*
+	 * The fans, which only a full combo gets. They start once the panel
+	 * has finished its bounce, fade in over 183ms and then run their six
+	 * frames in 100ms.
+	 */
 	drawEndingFans(ctx, elapsed, centreX, centreY){
-		if(elapsed > 540){
+		var since = elapsed - View.ENDING.fanStart
+		if(since < 0){
 			return
 		}
-		var frame = Math.floor(elapsed / 90)
+		var frame = Math.min(5, Math.max(0, Math.floor((since - 183) / 16.67)))
+		ctx.save()
+		ctx.globalAlpha *= Math.min(1, since / 183)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), centreX - 310, centreY)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), centreX + 310, centreY)
+		ctx.restore()
 	}
 	
 	/*
@@ -1531,7 +1565,28 @@
 	 * from Graphics/game/animation.json: a 150ms fade in, two in-frames
 	 * over 267ms, then four out-frames at 50ms each.
 	 */
-	drawEndingSticks(ctx, elapsed, centreX, centreY){
+	/*
+	 * The drumsticks.
+	 *
+	 * Every number is the skin's, out of Graphics/game/animation.json:
+	 *
+	 *   fade in      150ms from 0
+	 *   sweep apart  200px each over 117ms from 150ms, ease-out quadratic
+	 *   "in" frame 0 until 300ms, frame 1 until 417ms
+	 *   "out" frames on their own clock from 367ms at 50ms each, so the
+	 *                first one visible is frame 1, and frame 3 is held
+	 *                afterwards rather than the sticks disappearing
+	 *
+	 * They begin 58px apart rather than on top of each other -- the skin
+	 * puts them at 777 and 835 on a stage whose ending is centred on 806 --
+	 * so they read as two sticks sweeping outward rather than one splitting.
+	 *
+	 * A full combo sweeps them further and lifts them: another 150px over
+	 * 700ms eased both ends, times 1.15, and 150px up over 350ms which
+	 * comes back down.
+	 */
+	drawEndingSticks(ctx, elapsed, full, centreX, centreY){
+		var E = View.ENDING
 		var name, frames, frame
 		if(elapsed < 417){
 			name = "in"
@@ -1540,29 +1595,32 @@
 		}else{
 			name = "out"
 			frames = 4
-			frame = Math.min(3, Math.floor((elapsed - 417) / 50))
+			frame = Math.min(3, Math.max(0, Math.floor((elapsed - 367) / 50)))
 		}
 		
-		var separating = Math.min(1, Math.max(0, (elapsed - 150) / 117))
-		// Ease-out quadratic, as the skin has it.
-		var apart = 200 * (separating * (2 - separating))
+		var sweeping = Math.min(1, Math.max(0, (elapsed - 150) / 117))
+		var apart = E.stickRest + E.stickSweep * (sweeping * (2 - sweeping))
+		var lift = 0
+		if(full){
+			var since = elapsed - E.fanStart
+			if(since > 0){
+				var out2 = Math.min(1, since / 700)
+				// Eased at both ends, so it drifts out and settles.
+				var eased = out2 < 0.5 ? 2 * out2 * out2 : 1 - Math.pow(-2 * out2 + 2, 2) / 2
+				apart = (apart + 150 * eased) * 1.15
+				// Up and back down over 350ms each way.
+				var up = since < 350 ? since / 350 : Math.max(0, 1 - (since - 350) / 350)
+				lift = 150 * (up * up)
+			}
+		}
 		
 		ctx.save()
 		ctx.globalAlpha *= Math.min(1, elapsed / 150)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_l_" + name, frame, frames),
-			centreX - apart, centreY)
+			centreX - apart, centreY + E.stickY - lift)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_r_" + name, frame, frames),
-			centreX + apart, centreY)
+			centreX + apart, centreY + E.stickY - lift)
 		ctx.restore()
-		
-		// The impact, where each one lands.
-		if(elapsed >= 260 && elapsed < 420){
-			ctx.save()
-			ctx.globalAlpha *= 1 - (elapsed - 260) / 160
-			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), centreX - apart, centreY)
-			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), centreX + apart, centreY)
-			ctx.restore()
-		}
 	}
 	
 	/*
@@ -1580,45 +1638,64 @@
 		ctx.save()
 		ctx.translate(centreX, centreY)
 		
-		var pieces = panel === "yatai_ending_clear" ? 5 : 1
-		var name = pieces > 1 ? "yatai_ending_clear_separated" : panel
-		for(var i = 0; i < pieces; i++){
-			var appeared = Math.min(1, Math.max(0, (since - i * 50) / 100))
-			if(appeared <= 0){
-				continue
+		var E = View.ENDING
+		// The word arrives in pieces and is replaced by the whole image
+		// once its highlight has finished fading in, which is what the
+		// skin switches on.
+		var assembled = since >= E.highlightDelay + E.highlightFade
+		
+		// A full combo lifts the panel 20px and lets it back down.
+		if(full && since > E.fcLiftDelay){
+			var lifting = (since - E.fcLiftDelay) / 133
+			var lift = lifting < 1
+				? 20 * (lifting * (2 - lifting))
+				: Math.max(0, 20 * (1 - (lifting - 1) / 1.63))
+			ctx.translate(0, -lift)
+		}
+		
+		if(assembled){
+			this.drawEndingImage(ctx, this.endingSheet(panel, 0, 1), 0, 0)
+		}else if(panel === "yatai_ending_clear"){
+			// Drawn back to front, as the skin does, so earlier pieces
+			// overlap later ones.
+			for(var i = 4; i >= 0; i--){
+				var appeared = Math.min(1, Math.max(0, (since - i * 50) / 100))
+				if(appeared <= 0){
+					continue
+				}
+				var sheet = this.endingSheet("yatai_ending_clear_separated", i, 5)
+				if(!sheet){
+					break
+				}
+				// Spaced by the skin's own 60, not by the slice width. The
+				// slices are 80 wide and overlap by design; spacing them
+				// at their own width stretched the word a quarter wider
+				// than it should be, which is what pushed it under the
+				// drumsticks.
+				ctx.save()
+				ctx.globalAlpha *= appeared
+				this.drawEndingImage(ctx, sheet, (i - 2) * E.pieceSpacing, 0)
+				ctx.restore()
 			}
-			var sheet = this.endingSheet(name, i, pieces)
-			if(!sheet){
-				break
-			}
-			// The pieces tile across, so each sits where its slice was cut
-			// from rather than all of them at the centre.
-			var offset = pieces > 1 ? (i - (pieces - 1) / 2) * sheet.w : 0
+		}else{
 			ctx.save()
-			ctx.globalAlpha *= appeared
-			this.drawEndingImage(ctx, sheet, offset, 0)
+			ctx.globalAlpha *= Math.min(1, since / 100)
+			this.drawEndingImage(ctx, this.endingSheet(panel, 0, 1), 0, 0)
 			ctx.restore()
 		}
 		
-		var highlight = (since - 450) / 183
+		// Fades in after 450ms over 183ms, then straight back out again.
+		var highlight = (since - E.highlightDelay) / E.highlightFade
 		if(highlight > 0 && highlight < 2){
 			ctx.save()
 			ctx.globalAlpha *= highlight < 1 ? highlight : 2 - highlight
 			ctx.globalCompositeOperation = "lighter"
-			var hName = pieces > 1 ? "yatai_ending_clear_separated_highlight" : panel + "_highlight"
-			for(var i = 0; i < pieces; i++){
-				var sheet = this.endingSheet(hName, i, pieces)
-				if(!sheet){
-					break
-				}
-				var offset = pieces > 1 ? (i - (pieces - 1) / 2) * sheet.w : 0
-				this.drawEndingImage(ctx, sheet, offset, 0)
-			}
+			this.drawEndingImage(ctx, this.endingSheet(panel + "_highlight", 0, 1), 0, 0)
 			ctx.restore()
 		}
-		if(full){
+		if(full && assembled){
 			ctx.save()
-			ctx.globalAlpha *= 0.4 + 0.4 * Math.sin(elapsed / 200)
+			ctx.globalAlpha *= 0.5
 			ctx.globalCompositeOperation = "lighter"
 			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_full_combo_overlay", 0, 1), 0, 0)
 			ctx.restore()

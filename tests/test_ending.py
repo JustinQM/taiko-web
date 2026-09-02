@@ -18,7 +18,7 @@ DRIVE = """
         globalAlpha: 1, globalCompositeOperation: "source-over",
         save(){}, restore(){}, translate(){}, scale(){}, rotate(){},
         drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh){
-            drawn.push({name: current, x: dx + dw / 2, y: dy + dh / 2})
+            drawn.push({name: current, x: dx + dw / 2, y: dy + dh / 2, w: dw})
         },
     }
     // Names are resolved through assets.image; record which are asked for.
@@ -47,10 +47,20 @@ DRIVE = """
     const sticks = drawn.filter(d => /bachio_[lr]_(in|out)/.test(d.name || ""))
     const spread = sticks.length > 1
         ? Math.max(...sticks.map(s => s.x)) - Math.min(...sticks.map(s => s.x)) : 0
+    // Positions, not widths: the public build draws 1x1 placeholders, so
+    // only where things are put is real there.
+    const pieces = drawn.filter(d => /clear_separated$/.test(d.name || ""))
+        .map(d => d.x).sort((a, b) => a - b)
+    const gaps = pieces.slice(1).map((x, i) => Math.round((x - pieces[i]) * 10) / 10)
+    const centreX = (view.slotPos.paddingLeft + 1280) / 2
     return {
         asked: [...new Set(asked)],
         drew: drawn.length,
         spread: spread,
+        pieceGaps: gaps,
+        pieceSpan: pieces.length ? pieces[pieces.length - 1] - pieces[0] : 0,
+        stickOffset: sticks.length
+            ? Math.min(...sticks.map(s => Math.abs(s.x - centreX))) : 0,
         centres: {y: view.slotPos.y},
     }
 }
@@ -79,9 +89,12 @@ def test_the_sticks_fly_in_first(drive):
     assert "yatai_ending_bachio_r_in" in asked
 
 
-def test_the_fans_sweep_at_the_start_and_stop(drive):
-    assert "yatai_ending_fan_l" in drive(200)["asked"]
-    assert "yatai_ending_fan_l" not in drive(1000)["asked"]
+def test_only_a_full_combo_gets_fans(drive):
+    """The skin's clear animation draws no fans at all; they belong to the
+    full combo one, and start after its panel has bounced."""
+    assert "yatai_ending_fan_l" not in drive(1000, cleared=True, bad=3)["asked"]
+    assert "yatai_ending_fan_l" not in drive(200, cleared=True, bad=0)["asked"]
+    assert "yatai_ending_fan_l" in drive(1000, cleared=True, bad=0)["asked"]
 
 
 def test_a_clear_assembles_out_of_five_pieces(drive):
@@ -94,13 +107,36 @@ def test_a_clear_assembles_out_of_five_pieces(drive):
 
 
 def test_a_full_combo_shows_its_own_panel_and_confetti(drive):
-    asked = drive(600, cleared=True, bad=0)["asked"]
+    asked = drive(1000, cleared=True, bad=0)["asked"]
     assert "yatai_ending_full_combo" in asked
     assert "yatai_ending_confetti" in asked
 
 
 def test_a_clear_gets_no_confetti(drive):
-    assert "yatai_ending_confetti" not in drive(600, cleared=True, bad=3)["asked"]
+    assert "yatai_ending_confetti" not in drive(1000, cleared=True, bad=3)["asked"]
+
+
+def test_the_word_pieces_use_the_skin_spacing(game, drive):
+    """They are spaced by the skin's 60, not by their own 80px width.
+
+    Spacing them at their width stretched the word a quarter wider than it
+    should be, which is what pushed it out under the drumsticks. Measured
+    from where the pieces are placed rather than how wide they are drawn,
+    because the public build's art is all 1x1 placeholders.
+    """
+    gaps = drive(500, cleared=True, bad=3)["pieceGaps"]
+    spacing = game.page.evaluate("() => View.ENDING.pieceSpacing")
+    assert spacing == 60
+    assert gaps and all(g == pytest.approx(spacing) for g in gaps), \
+        f"pieces are {gaps} apart, expected {spacing}"
+
+
+def test_the_sticks_end_up_outside_the_word(drive):
+    """They are drawn over the panel, so they have to finish beside it."""
+    result = drive(2000, cleared=True, bad=3)
+    half_word = max(result["pieceSpan"] / 2, 1)
+    assert result["stickOffset"] > half_word, \
+        f"sticks sit {result['stickOffset']} from centre, inside a word half-width of {half_word}"
 
 
 def test_a_fail_shows_the_fail_panel(drive):
@@ -134,13 +170,15 @@ def test_the_sticks_stay_once_they_have_swept_apart(drive):
     assert "yatai_ending_bachio_l_in" not in asked
 
 
-def test_the_sticks_sweep_apart_from_the_centre(drive):
+def test_the_sticks_sweep_apart(game, drive):
     """Without this they only blinked between frames, which read as a
-    flicker rather than a movement."""
+    flicker rather than a movement. They start 58px apart rather than on
+    top of each other, so they look like two sticks separating."""
+    rest = game.page.evaluate("() => View.ENDING.stickRest * 2")
     spread = drive(0)["spread"], drive(150)["spread"], drive(400)["spread"]
-    assert spread[0] == pytest.approx(0), "they did not start together"
-    assert spread[2] > 300, f"they barely moved: {spread}"
-    assert spread[1] < spread[2], "the sweep runs backwards"
+    assert spread[0] == pytest.approx(rest), f"they did not start at rest: {spread[0]}"
+    assert spread[1] == pytest.approx(rest), "the sweep started early"
+    assert spread[2] > spread[1] + 300, f"they barely moved: {spread}"
 
 
 def test_everything_lines_up_with_the_play_line(drive):
