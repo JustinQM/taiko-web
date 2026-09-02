@@ -1344,6 +1344,15 @@
 			ctx.scale(config.scale, config.scale)
 		}
 		ctx.translate(-47, -39)
+		
+		// The skin has real crown art; the path is what the public build
+		// falls back to, since that art is private. Both occupy the same
+		// 94x78 box so everything that positions a crown is unaffected.
+		if(config.type && this.drawCrownImage(ctx, config)){
+			ctx.restore()
+			return
+		}
+		
 		ctx.miterLimit = 1.7
 		
 		if(config.whiteOutline){
@@ -1425,6 +1434,30 @@
 	// player's at 0..22, which is what the two branches in gauge() draw.
 	get gaugeMirrorY(){
 		return 52
+	}
+	
+	/*
+	 * The crown as an image, if there is one. Returns false when there is
+	 * not, so the caller falls back to drawing the path.
+	 *
+	 * The small art is a different drawing rather than the large one
+	 * scaled -- it is legible at wheel size where the large one is mud --
+	 * so which is used follows how big it is being drawn.
+	 */
+	drawCrownImage(ctx, config){
+		var small = (config.scale || 1) < 0.45
+		var name = "yatai_crown_" + (small ? "small_" : "") + config.type
+		var img = assets.image[name]
+		// A 1x1 placeholder is the public build having no art; fall back
+		// rather than stretching a single pixel over the crown.
+		if(!img || !img.complete || img.naturalWidth < 2){
+			return false
+		}
+		if(config.shine){
+			ctx.globalAlpha *= 1 - config.shine
+		}
+		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, 94, 78)
+		return true
 	}
 	
 	getGaugeRainbowImage(config){

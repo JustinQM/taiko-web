@@ -132,3 +132,45 @@ def test_a_selection_still_syncs_at_the_root(pair):
     b.settle()
     assert a.wheel()["selected"] == b.wheel()["selected"]
     assert a.wheel()["title"] == b.wheel()["title"]
+
+
+def test_the_socket_reconnects_after_the_server_restarts(browser):
+    """p2 registered its close listener through pageEvents.race, which
+    removes both listeners as soon as either fires -- so once a connection
+    succeeded the close listener was gone, a later disconnect was never
+    noticed, and the retry inside closeEvent was unreachable in the case
+    it was written for.
+    """
+    import subprocess
+
+    context = browser.new_context()
+    client = open_client(context)
+    client.page.wait_for_function(
+        "() => p2.socket && p2.socket.readyState === 1", timeout=15000)
+
+    subprocess.run(
+        ["sg", "docker", "-c", "docker restart taiko-web-multiplayer-1"],
+        check=True, capture_output=True)
+
+    # It must notice the socket has gone...
+    client.page.wait_for_function(
+        "() => !p2.socket || p2.socket.readyState !== 1", timeout=20000)
+    # ...and come back on its own, without anything asking it to.
+    client.page.wait_for_function(
+        "() => p2.socket && p2.socket.readyState === 1", timeout=45000)
+
+    context.close()
+
+
+def test_the_socket_closes_when_the_page_goes_away(pair):
+    """Nothing closed it on unload, so a refresh left the server holding
+    the connection and the waiting list filling with ghosts."""
+    a, b = pair
+    closed = a.page.evaluate("""() => {
+        let closedCalled = false
+        const real = p2.close.bind(p2)
+        p2.close = () => { closedCalled = true; return real() }
+        window.dispatchEvent(new Event("beforeunload"))
+        return closedCalled
+    }""")
+    assert closed is True, "beforeunload did not close the socket"

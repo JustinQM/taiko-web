@@ -10,6 +10,14 @@ class P2Connection{
 		this.player = 1
 		this.allEvents = new Map()
 		this.addEventListener("message", this.message.bind(this))
+		// Nothing closed the socket when the page went away, so a refresh
+		// left the server holding the connection until it noticed --
+		// which on a matchmaking server means ghosts in the waiting list.
+		// pagehide is the one that fires on mobile, where beforeunload
+		// often does not.
+		this.unloadHandler = () => this.close()
+		pageEvents.add(window, "beforeunload", this.unloadHandler, Symbol())
+		pageEvents.add(window, "pagehide", this.unloadHandler, Symbol())
 		this.currentHash = ""
 		this.disabled = 0
 		pageEvents.add(window, "hashchange", this.onhashchange.bind(this))
@@ -33,16 +41,20 @@ class P2Connection{
 			this.closed = false
 			var wsProtocol = location.protocol == "https:" ? "wss:" : "ws:"
 			this.socket = new WebSocket(wsProtocol + "//" + location.host + "/p2")
-			pageEvents.race(this.socket, "open", "close").then(response => {
-				if(response.type === "open"){
-					return this.openEvent()
-				}
-				return this.closeEvent()
-			})
+			// Listened for separately rather than through race, which
+			// removes both listeners as soon as either fires: once a
+			// connection succeeded the close listener was gone, so a
+			// disconnect after that point was never noticed and the retry
+			// below was unreachable in the case it was written for.
+			pageEvents.add(this.socket, "open", () => this.openEvent(), Symbol())
+			pageEvents.add(this.socket, "close", () => this.closeEvent(), Symbol())
 			pageEvents.add(this.socket, "message", this.messageEvent.bind(this))
 		}
 	}
 	openEvent(){
+		// A connection that lasted means the next failure starts over
+		// from a short wait rather than the long one it had backed off to.
+		this.retryDelay = 0
 		var addedType = this.allEvents.get("open")
 		if(addedType){
 			addedType.forEach(callback => callback())
@@ -51,13 +63,19 @@ class P2Connection{
 	close(){
 		if(!this.closed){
 			this.closed = true
+			if(this.retryTimeout){
+				clearTimeout(this.retryTimeout)
+				this.retryTimeout = null
+			}
 			if(this.socket){
 				this.socket.close()
 			}
 		}
 	}
 	closeEvent(){
-		this.removeEventListener(onmessage)
+		// This used to open with removeEventListener(onmessage), and
+		// 'onmessage' is not defined anywhere -- had this ever been
+		// reached it would have thrown before getting to the retry.
 		this.otherConnected = false
 		this.session = false
 		if(this.hashLock){
@@ -65,11 +83,19 @@ class P2Connection{
 			this.hashLock = false
 		}
 		if(!this.closed){
-			setTimeout(() => {
-				if(this.socket.readyState !== this.socket.OPEN){
+			// Backed off rather than a flat half second, so a server that
+			// is down is not asked once a second forever. Reset by a
+			// connection that lasts.
+			this.retryDelay = Math.min(8000, (this.retryDelay || 0) * 2 || 500)
+			this.retryTimeout = setTimeout(() => {
+				this.retryTimeout = null
+				if(!this.socket || this.socket.readyState !== this.socket.OPEN){
+					// closed is still false here, and open() only acts when
+					// it is true, so it is flipped for the retry itself.
+					this.closed = true
 					this.open()
 				}
-			}, 500)
+			}, this.retryDelay)
 			pageEvents.send("p2-disconnected")
 		}
 		var addedType = this.allEvents.get("close")

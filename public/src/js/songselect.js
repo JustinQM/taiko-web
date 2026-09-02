@@ -1825,6 +1825,13 @@ class SongSelect{
 						selected: true
 					})
 				}
+			}else{
+				// Everything else with an action lands here: settings,
+				// about, how to play. They are not usable in a session and
+				// the wheel already draws them greyed out, but the press
+				// used to vanish with no sound and no sign it had been
+				// noticed. Say no instead of saying nothing.
+				this.playSound("se_cancel", 0, p2.player)
 			}
 		}else if(this.state.locked === 0 || fromP2){
 			this.removeSearch()

@@ -241,3 +241,37 @@ def test_blocked_entries_do_nothing_in_a_session(dispatch, action):
     assert result["openedSearch"] is False
     assert result["leftSongSelect"] is False, \
         f"{action} navigated away during a session instead of being ignored"
+
+
+def test_no_entry_disappears_silently_in_a_session(wheel):
+    """The session branch used to send a selection for anything with
+    courses and do nothing at all for everything else -- no sound, no
+    message, no sign the press had been noticed. Search and Random were
+    named explicitly; the rest still vanished.
+    """
+    result = wheel.page.evaluate("""() => {
+        const realSession = p2.session, realSend = p2.send, realSound = __ss.playSound
+        const out = {}
+        try {
+            p2.session = true
+            for (const item of __ss.navigator.items) {
+                const action = item.action || "song"
+                if (action === "folder" || action === "back") continue
+                let heard = false, sent = false
+                p2.send = () => { sent = true }
+                __ss.playSound = () => { heard = true }
+                __ss.state.selLock = false
+                __ss.state.locked = 0
+                __ss.selectedSong = __ss.navigator.items.indexOf(item)
+                __ss.toSelectDifficulty()
+                out[action] = sent || heard
+            }
+            return out
+        } finally {
+            p2.session = realSession; p2.send = realSend; __ss.playSound = realSound
+            __ss.removeSearch && __ss.removeSearch()
+            __ss.state.screen = "song"
+        }
+    }""")
+    silent = [action for action, acted in result.items() if not acted]
+    assert not silent, f"these did nothing at all in a session: {silent}"
