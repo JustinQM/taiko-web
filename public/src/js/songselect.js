@@ -1614,7 +1614,12 @@ class SongSelect{
 	
 	toSelectDifficulty(fromP2){
 		var currentSong = this.songs[this.selectedSong]
-		if(p2.session && !fromP2 && currentSong.action !== "random"){
+		// Course-less entries fall through to the else branch, which does
+		// nothing for them during netplay, so Search was unreachable in a
+		// session. Searching is safe: searchProceed sets the index and
+		// calls back into here, which sends "songsel" to the peer exactly
+		// as a normal selection does.
+		if(p2.session && !fromP2 && currentSong.action !== "random" && currentSong.action !== "search"){
 			if(this.songs[this.selectedSong].courses){
 				if(!this.state.selLock){
 					this.state.selLock = true
