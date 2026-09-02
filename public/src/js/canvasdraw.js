@@ -1409,6 +1409,13 @@
 		ctx.restore()
 	}
 	
+	// The gauge spans y 0 to 52, so mirroring about its midline is a flip
+	// about this. The first player's bar at 30..52 maps onto the second
+	// player's at 0..22, which is what the two branches in gauge() draw.
+	get gaugeMirrorY(){
+		return 52
+	}
+	
 	getGaugeRainbowImage(config){
 		if(config.clear <= 31 / 50){
 			return assets.image["yatai_gauge_rainbow_easy"]
@@ -1447,12 +1454,25 @@
 		var frameB = (frameA + 1) % 8
 		var t = frameProgress - frameA
 		var dx = -6
-		var dy = config.multiplayer ? -8 : -8
+		var dy = -8
 		var dw = 712
 		var dh = 64
 		
 		ctx.save()
 		ctx.globalAlpha *= fade
+		if(config.multiplayer){
+			// The second player's gauge is the first player's mirrored
+			// about its midline: firstTop and secondTop go from 30 and 8
+			// to 0, and the body's rounded corners flip with them, so the
+			// clear section sits below the bar instead of above it. The
+			// overlay has to be mirrored too, or it lies over the wrong
+			// half of the gauge. It was drawn at the same offset for both
+			// -- the offset was even written as a ternary with two
+			// identical arms, so this was meant to be handled and never
+			// was.
+			ctx.translate(0, this.gaugeMirrorY)
+			ctx.scale(1, -1)
+		}
 		ctx.drawImage(img, 0, frameA * dh, dw, dh, dx, dy, dw, dh)
 		ctx.globalAlpha *= t
 		ctx.drawImage(img, 0, frameB * dh, dw, dh, dx, dy, dw, dh)
