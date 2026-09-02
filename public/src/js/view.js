@@ -44,7 +44,6 @@
 		this.rules = this.controller.game.rules
 		this.portraitClass = false
 		this.touchp2Class = false
-		this.darkDonBg = false
 
 		this.pauseOptions = strings.pauseOptions
 		this.difficulty = {
@@ -306,7 +305,12 @@
 		}
 		if(this.background){
 			var gaugeScore = this.controller.getGlobalScore()
-			this.background.update(ms, this.rules.clearReached(gaugeScore.gauge))
+			var gaugePercent = this.rules.gaugePercent(gaugeScore.gauge)
+			this.background.update(ms, {
+				progress: gaugePercent,
+				clear: gaugePercent >= this.rules.gaugeClear,
+				rainbow: gaugePercent >= 1
+			})
 			this.background.draw(ctx, frameLeft, frameTop)
 		}
 		if(touchMultiplayer){
@@ -2721,15 +2725,7 @@
 					explosion.setAnimation(false)
 				})
 			}
-			this.setDarkBg(score === 0)
-		}else{
-			this.setDarkBg(true)
 		}
-	}
-	// The background dims while the gauge is failing. It used to be a
-	// class on a DOM layer; the canvas background reads the flag.
-	setDarkBg(miss){
-		this.darkDonBg = !!miss
 	}
 	posToMs(pos, speed){
 		var circleSize = 70 * this.slotPos.size / 106 / 2

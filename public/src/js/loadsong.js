@@ -198,10 +198,10 @@ class LoadSong{
 	/*
 	 * The background strips this song needs.
 	 *
-	 * All of them together are 12MB, which was most of what the game
-	 * loaded before the title screen. A song needs under three, and this
-	 * runs while the loading screen is up -- so nothing is fetched once
-	 * play has started, which is the part that would cost notes.
+	 * All of them together are 28MB, which is more than the game used to
+	 * load before the title screen. A song needs a tenth of that, and
+	 * this runs while the loading screen is up -- so nothing is fetched
+	 * once play has started, which is the part that would cost notes.
 	 *
 	 * The choice of set has to match what GameBackground makes later, so
 	 * both ask the same function rather than each deciding.

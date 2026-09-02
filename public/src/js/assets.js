@@ -14,6 +14,7 @@ var assets = {
 		"game.js",
 		"controller.js",
 		"circle.js",
+		"bganim.js",
 		"gamebackground.js",
 		"view.js",
 		"mekadon.js",

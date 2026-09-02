@@ -526,7 +526,9 @@ class Game{
 		this.globalScore.drumroll++
 		this.sectionDrumroll++
 		this.globalScore.points += score
-		this.view.setDarkBg(false)
+		if(this.view && this.view.background){
+			this.view.background.handleRoll()
+		}
 	}
 	checkDrumroll(circle, keysKa){
 		var ms = this.elapsedTime
@@ -561,7 +563,9 @@ class Game{
 		this.globalScore.drumroll++
 		this.sectionDrumroll++
 		this.globalScore.points += score * (dai ? 2 : 1)
-		this.view.setDarkBg(false)
+		if(this.view && this.view.background){
+			this.view.background.handleRoll()
+		}
 	}
 	getLastCircle(circles){
 		for(var i = circles.length; i--;){
@@ -762,6 +766,15 @@ class Game{
 				this.globalScore.bad++
 				this.globalScore.gauge += this.soulPoints.bad
 				break
+		}
+		// A small character runs across the background on a hit, and a
+		// sadder one on a miss.
+		if(this.view && this.view.background){
+			if(score === 0){
+				this.view.background.handleMiss()
+			}else{
+				this.view.background.handleHit()
+			}
 		}
 		if (this.songData.scoremode) { 
 			switch (score) {
