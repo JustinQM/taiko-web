@@ -16,7 +16,12 @@ import os
 
 import pytest
 
-TAIKO_URL = os.environ.get("TAIKO_URL", "http://localhost:34900")
+TAIKO_URL = os.environ.get("TAIKO_URL", "http://localhost:34910")
+
+# The public stack ships no songs, so every preview and chart request
+# fails there by design. Those are not the errors these tests are looking
+# for.
+IGNORED_ERRORS = ("/songs/",)
 
 # The settings screen's own list. The gamepad and latency sub-windows are
 # nested .view-content elements inside it, so an unscoped .setting-box
@@ -41,7 +46,11 @@ class Game:
     def __init__(self, page):
         self.page = page
         self.errors = []
-        page.on("pageerror", lambda e: self.errors.append(str(e)))
+        page.on("pageerror", lambda e: self._record(str(e)))
+
+    def _record(self, message):
+        if not any(ignore in message for ignore in IGNORED_ERRORS):
+            self.errors.append(message)
 
     def load(self):
         self.page.goto(TAIKO_URL, wait_until="networkidle", timeout=60000)
@@ -109,6 +118,56 @@ class Game:
     def setting(self, key):
         """The value the client resolves for a key, defaults included."""
         return self.page.evaluate("key => settings.getItem(key)", key)
+
+    # ------------------------------------------------------------ song select
+
+    def open_song_select(self):
+        """Construct SongSelect directly, as the title screen would.
+
+        The tutorial flag is set first: without it a fresh profile is sent
+        to the tutorial instead.
+        """
+        self.page.wait_for_function(
+            "() => typeof SongSelect !== 'undefined' && assets.songs.length",
+            timeout=40000,
+        )
+        self.page.evaluate("""() => {
+            try { localStorage.setItem("tutorial", "true") } catch(e) {}
+            window.__ss = new SongSelect(false, false, false)
+        }""")
+        return self
+
+    def settle(self, timeout=5000):
+        """Wait for a move animation to finish.
+
+        state.locked is 1 while the wheel is sliding and drops back to 0
+        when redraw has applied the move.
+        """
+        self.page.wait_for_function("() => __ss.state.locked === 0", timeout=timeout)
+        return self
+
+    def wheel(self):
+        return self.page.evaluate("""() => ({
+            total: __ss.songs.length,
+            selected: __ss.selectedSong,
+            screen: __ss.state.screen,
+            title: __ss.songs[__ss.selectedSong].title,
+            category: __ss.songs[__ss.selectedSong].category,
+            action: __ss.songs[__ss.selectedSong].action || null,
+        })""")
+
+    def move(self, by):
+        self.page.evaluate("by => __ss.moveToSong(by)", by)
+        return self.settle()
+
+    def category_jump(self, by):
+        self.page.evaluate("by => __ss.categoryJump(by)", by)
+        return self.settle()
+
+    def select_index(self, index):
+        """Put the cursor on a given entry without animating there."""
+        self.page.evaluate("i => { __ss.selectedSong = i; __ss.state.move = 0 }", index)
+        return self
 
 
 @pytest.fixture
