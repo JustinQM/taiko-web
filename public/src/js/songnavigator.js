@@ -41,6 +41,13 @@ class SongNavigator{
 			this.config.updateSearchText(song)
 			songs.push(this.config.addSong(song))
 		}
+		// addSong copies every property of the song onto the wheel entry,
+		// and a folder entry keeps its folder on .folder. Move the song's
+		// source path out of the way so the two cannot be confused.
+		songs.forEach(song => {
+			song.folderPath = Array.isArray(song.folder) ? song.folder : null
+			delete song.folder
+		})
 		songs.sort((a, b) => {
 			var catA = a.originalCategory in skin ? skin[a.originalCategory] : skin.default
 			var catB = b.originalCategory in skin ? skin[b.originalCategory] : skin.default
@@ -80,7 +87,12 @@ class SongNavigator{
 			}
 			byCategory[key].songs.push(song)
 		}
-		return folders.map(folder => ({
+		folders.forEach(folder => this.nest(folder, 0))
+		return folders.map(folder => this.folderItem(folder))
+	}
+	
+	folderItem(folder){
+		return {
 			title: folder.title,
 			category: folder.title,
 			originalCategory: folder.originalCategory,
@@ -88,7 +100,49 @@ class SongNavigator{
 			action: "folder",
 			folder: folder,
 			canJump: true
-		}))
+		}
+	}
+	
+	/*
+	 * Split a folder's songs into sub-folders by the next component of
+	 * their source path, recursively.
+	 *
+	 * Most songs have no path left once the pack and the genre are
+	 * accounted for, so most genres stay flat and this does nothing. The
+	 * ones that do -- the OpenTaiko collaborations -- get the structure
+	 * they had on disk. A database imported before the field existed has
+	 * none of it and lists everything flat, which is why this is driven
+	 * off the songs rather than off a separate tree.
+	 */
+	nest(folder, depth){
+		var groups = {}
+		var order = []
+		var here = []
+		folder.songs.forEach(song => {
+			var path = song.folderPath
+			if(!path || path.length <= depth){
+				here.push(song)
+				return
+			}
+			var name = path[depth]
+			if(!(name in groups)){
+				groups[name] = {
+					id: folder.id + "/" + name,
+					title: name,
+					originalCategory: folder.originalCategory,
+					skin: folder.skin,
+					songs: []
+				}
+				order.push(groups[name])
+			}
+			groups[name].songs.push(song)
+		})
+		if(!order.length){
+			return
+		}
+		order.forEach(child => this.nest(child, depth + 1))
+		folder.children = order
+		folder.songs = here
 	}
 	
 	/*
@@ -105,18 +159,49 @@ class SongNavigator{
 			return null
 		}
 		var song = this.songItems[Math.floor(Math.random() * this.songItems.length)]
-		var rootIndex = this.rootItems().findIndex(item =>
-			this.isFolder(item) && item.folder.songs.indexOf(song) !== -1)
-		if(rootIndex === -1){
+		return this.locate(song)
+	}
+	
+	/*
+	 * Find the way to a song: the folder path to open, and where it sits
+	 * in that folder's listing. Walks the whole tree, because a song can
+	 * be nested below its genre.
+	 */
+	locate(song){
+		var found = null
+		var walk = (folder, path) => {
+			if(found){
+				return
+			}
+			var here = folder.songs.indexOf(song)
+			if(here !== -1){
+				found = {
+					path: path,
+					// the listing starts with the back box, then any
+					// sub-folders, then the songs
+					index: 1 + (folder.children ? folder.children.length : 0) + here
+				}
+				return
+			}
+			;(folder.children || []).forEach(child =>
+				walk(child, path.concat([child.id])))
+		}
+		this.rootItems().forEach(item => {
+			if(this.isFolder(item) && item.folder.id.indexOf("genre:") === 0){
+				walk(item.folder, [item.folder.id])
+			}
+		})
+		return found
+	}
+	
+	/*
+	 * Open a folder path and return where the cursor should land in it.
+	 */
+	jumpToPath(path, index){
+		if(!this.goToPath(path)){
 			return null
 		}
-		var folderItem = this.rootItems()[rootIndex]
-		return {
-			rootIndex: rootIndex,
-			folder: folderItem.folder,
-			// +1 for the back box the folder listing starts with
-			index: folderItem.folder.songs.indexOf(song) + 1
-		}
+		return Math.min(Math.max(0, index), this.items.length - 1)
 	}
 	
 	/*
@@ -158,19 +243,6 @@ class SongNavigator{
 	
 	rootItems(){
 		return this.stack.length ? this.stack[0].items : this.items
-	}
-	
-	/*
-	 * Jump straight to a folder and a position inside it, from wherever we
-	 * are. Used by random, and by anything else that knows where it wants
-	 * to land rather than how to walk there.
-	 */
-	jumpTo(rootIndex, index){
-		while(this.stack.length){
-			this.back(0)
-		}
-		this.enter(rootIndex)
-		return Math.min(Math.max(0, index), this.items.length - 1)
 	}
 	
 	/*
@@ -295,6 +367,10 @@ class SongNavigator{
 			skin: this.config.skin.back,
 			action: "back"
 		}]
+		// Sub-folders before songs, as they sort on disk.
+		if(folder.children){
+			items = items.concat(folder.children.map(child => this.folderItem(child)))
+		}
 		return items.concat(folder.songs)
 	}
 	

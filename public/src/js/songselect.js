@@ -1779,7 +1779,12 @@ class SongSelect{
 				var target = this.navigator.randomSong()
 				if(target){
 					setTimeout(() => {
-						this.enterListing(this.navigator.jumpTo(target.rootIndex, target.index))
+						var index = this.navigator.jumpToPath(target.path, target.index)
+						if(index === null){
+							this.state.locked = 0
+							return
+						}
+						this.enterListing(index)
 					}, 200)
 				}else{
 					this.state.locked = 0

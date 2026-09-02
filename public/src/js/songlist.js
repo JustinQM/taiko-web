@@ -94,7 +94,22 @@ class SongList{
 		return add
 	}
 	
+	/*
+	 * Writes are chained rather than fired in parallel.
+	 *
+	 * Each one fetches a CSRF token first, so two toggles in quick
+	 * succession can reach the server in the opposite order to the one
+	 * they were made in and the list ends up disagreeing with the screen.
+	 * Queueing them keeps the server's order the player's order.
+	 */
 	post(songId, value){
+		this.queue = (this.queue || Promise.resolve())
+			.catch(() => {})
+			.then(() => this.send(songId, value))
+		return this.queue
+	}
+	
+	send(songId, value){
 		// Same shape as scoreStorage's save: fetch a CSRF token, then send.
 		return loader.getCsrfToken().then(token => {
 			var request = new XMLHttpRequest()

@@ -25,11 +25,17 @@ def test_song_select_opens_without_errors(wheel):
 def test_every_song_is_reachable_through_a_genre_folder(wheel):
     """No song is stranded: the genre folders partition all of them."""
     counts = wheel.page.evaluate("""() => {
-        const folders = __ss.navigator.items.filter(i => i.action === "folder")
-        const inFolders = folders.reduce((n, f) => n + f.folder.songs.length, 0)
+        // Recursive: genres nest sub-folders when the source tree had
+        // them, so a song can be more than one level down.
         const ids = new Set()
-        for (const f of folders) for (const s of f.folder.songs) ids.add(s.id)
-        return {songs: assets.songs.length, inFolders: inFolders, distinct: ids.size}
+        let total = 0
+        const walk = folder => {
+            for (const s of folder.songs) { ids.add(s.id); total++ }
+            for (const c of folder.children || []) walk(c)
+        }
+        for (const item of __ss.navigator.items)
+            if (item.folder && item.folder.id.startsWith("genre:")) walk(item.folder)
+        return {songs: assets.songs.length, inFolders: total, distinct: ids.size}
     }""")
     assert counts["inFolders"] == counts["songs"]
     assert counts["distinct"] == counts["songs"], "a song is in two folders"

@@ -90,10 +90,10 @@ def test_random_reaches_a_song_from_the_root(wheel):
     assert target["index"] >= 1, "landed on the back box"
 
     wheel.page.evaluate(
-        "t => __ss.enterListing(__ss.navigator.jumpTo(t.rootIndex, t.index))", target)
+        "t => __ss.enterListing(__ss.navigator.jumpToPath(t.path, t.index))", target)
     landed = wheel.wheel()
     assert landed["action"] is None, f"random landed on {landed['action']}"
-    assert wheel.page.evaluate("() => __ss.navigator.path.length") == 1
+    assert wheel.page.evaluate("() => __ss.navigator.path.length") >= 1
 
 
 def test_random_lands_somewhere_different_over_many_tries(wheel):
@@ -101,7 +101,8 @@ def test_random_lands_somewhere_different_over_many_tries(wheel):
         const out = new Set()
         for (let i = 0; i < 40; i++) {
             const t = __ss.navigator.randomSong()
-            out.add(t.rootIndex + ":" + t.index)
+            if (!t) return -1     // every song must be reachable
+            out.add(t.path.join("/") + ":" + t.index)
         }
         return out.size
     }""")
@@ -132,3 +133,94 @@ def test_folders_are_refused_during_a_session(wheel):
         } finally { p2.session = real }
     }""")
     assert blocked == 0, "a folder was entered during a session"
+
+
+def test_nesting_comes_from_the_source_tree(wheel):
+    """Sub-folders are the path the chart had on disk, below its genre.
+
+    Most songs have none, so most genres stay flat. The ones that do get
+    the structure they were organised with.
+    """
+    nested = wheel.page.evaluate("""() => {
+        const out = []
+        for (const item of __ss.navigator.items) {
+            if (!item.folder || !item.folder.children) continue
+            out.push({
+                genre: item.folder.id,
+                children: item.folder.children.map(c => ({id: c.id, songs: c.songs.length})),
+            })
+        }
+        return out
+    }""")
+    if not nested:
+        pytest.skip("this database has no songs with a folder path")
+    assert any(c["songs"] > 1 for n in nested for c in n["children"])
+
+
+def test_a_nested_folder_can_be_opened(wheel):
+    index = wheel.page.evaluate(
+        "() => __ss.navigator.items.findIndex(i => i.folder && i.folder.children)")
+    if index < 0:
+        pytest.skip("this database has no nested folders")
+
+    wheel.enter_folder(index)
+    child = wheel.page.evaluate(
+        "() => __ss.songs.findIndex(s => s.action === 'folder')")
+    assert child > 0, "the sub-folder is not listed above the songs"
+
+    wheel.select_index(child)
+    wheel.page.evaluate("() => __ss.toFolder()")
+    wheel.page.wait_for_function("() => __ss.navigator.path.length === 2", timeout=5000)
+    assert wheel.page.evaluate("() => __ss.songs.slice(1).every(s => !!s.courses)")
+    assert wheel.errors == []
+
+
+def test_leaving_a_nested_folder_goes_up_one_level(wheel):
+    index = wheel.page.evaluate(
+        "() => __ss.navigator.items.findIndex(i => i.folder && i.folder.children)")
+    if index < 0:
+        pytest.skip("this database has no nested folders")
+    wheel.enter_folder(index)
+    child = wheel.page.evaluate("() => __ss.songs.findIndex(s => s.action === 'folder')")
+    wheel.select_index(child)
+    wheel.page.evaluate("() => __ss.toFolder()")
+    wheel.page.wait_for_function("() => __ss.navigator.path.length === 2", timeout=5000)
+
+    wheel.select_index(0)
+    wheel.page.evaluate("() => __ss.toFolderUp()")
+    wheel.page.wait_for_function("() => __ss.navigator.path.length === 1", timeout=5000)
+    assert wheel.wheel()["selected"] == child, "did not land back on the sub-folder"
+
+
+def test_a_song_property_cannot_be_mistaken_for_a_folder(wheel):
+    """Songs carry their source path too; it must not look like a folder."""
+    clean = wheel.page.evaluate(
+        "() => __ss.navigator.songItems.every(s => s.folder === undefined)")
+    assert clean is True, "a song still has a .folder, which folder items use"
+
+
+def test_random_can_reach_a_nested_song(wheel):
+    """Songs below their genre were unreachable when nesting arrived: the
+    lookup only searched the top level of each genre and gave up."""
+    nested = wheel.page.evaluate("""() => {
+        for (const item of __ss.navigator.items) {
+            const f = item.folder
+            if (f && f.children && f.children.length && f.children[0].songs.length)
+                return f.children[0].songs[0].id
+        }
+        return null
+    }""")
+    if nested is None:
+        pytest.skip("this database has no nested songs")
+
+    target = wheel.page.evaluate("""id => {
+        const song = __ss.navigator.songItems.find(s => s.id === id)
+        return __ss.navigator.locate(song)
+    }""", nested)
+    assert target is not None, "a nested song could not be located"
+    assert len(target["path"]) == 2, f"expected a two-level path, got {target['path']}"
+
+    index = wheel.page.evaluate(
+        "t => __ss.navigator.jumpToPath(t.path, t.index)", target)
+    landed = wheel.page.evaluate("i => __ss.navigator.items[i].id", index)
+    assert landed == nested, "landed on the wrong song"
