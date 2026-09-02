@@ -88,6 +88,26 @@ def api_error(message):
     return jsonify({'status': 'error', 'message': message})
 
 
+def relative_redirect(location):
+    """Redirect without rewriting the location into an absolute URL.
+
+    Werkzeug turns a relative Location into an absolute one using the Host
+    header, and nginx forwards $host, which carries no port. On a
+    deployment served on anything other than port 80 that produces a URL
+    that does not resolve -- the browser's first request for a song
+    preview lands nowhere. It is invisible afterwards because
+    make_preview has written the file by then, so nginx's try_files
+    serves it on the next attempt and only the first play of each song
+    silently has no preview.
+
+    A relative Location is valid (RFC 7231 section 7.1.2) and avoids
+    reconstructing the origin at all.
+    """
+    response = redirect(location)
+    response.autocorrect_location_header = False
+    return response
+
+
 def delete_cached_view(path):
     app.cache.delete('view/%s' % path)
 
@@ -492,9 +512,9 @@ def route_api_preview():
     song_ext = song['music_type'] if song['music_type'] else "mp3"
     prev_path = make_preview(song_id, song_type, song_ext, song['preview'])
     if not prev_path:
-        return redirect(get_config()['songs_baseurl'] + '%s/main.%s' % (song_id, song_ext))
+        return relative_redirect(get_config()['songs_baseurl'] + '%s/main.%s' % (song_id, song_ext))
 
-    return redirect(get_config()['songs_baseurl'] + '%s/preview.mp3' % song_id)
+    return relative_redirect(get_config()['songs_baseurl'] + '%s/preview.mp3' % song_id)
 
 
 @app.route('/api/songs')
