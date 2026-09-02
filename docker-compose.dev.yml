@@ -2,7 +2,7 @@
 # a host data directory, and ports offset into the 349xx range so it can
 # run alongside anything else on the machine.
 #
-#   podman-compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml up --build
 #
 # There is no song audio and no real assets here, so songs are not
 # playable and the UI is unstyled. That is expected — this stack exists to

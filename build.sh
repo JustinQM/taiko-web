@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 IMAGE="${IMAGE:-taiko-web}"
 HS_IMAGE="${HS_IMAGE:-taiko-highscores}"
 TAG="${TAG:-$(date +%Y%m%d-%H%M)}"
-ENGINE="${ENGINE:-podman}"
+ENGINE="${ENGINE:-docker}"
 
 info() { printf '\033[36m::\033[0m %s\n' "$*"; }
 
