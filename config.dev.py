@@ -6,7 +6,6 @@ SONGS_BASEURL = '/songs/'
 EMAIL = None
 ACCOUNTS = True
 CUSTOM_JS = '/src/custom.js'
-PLUGINS = []
 PREVIEW_TYPE = 'mp3'
 
 # nginx runs in a separate container and cannot reach localhost here.

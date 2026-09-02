@@ -179,7 +179,6 @@ def get_config(credentials=False):
         'email': take_config('EMAIL'),
         'accounts': take_config('ACCOUNTS'),
         'custom_js': take_config('CUSTOM_JS'),
-        'plugins': take_config('PLUGINS') and [x for x in take_config('PLUGINS') if x['url']],
         'preview_type': take_config('PREVIEW_TYPE') or 'mp3'
     }
     if credentials:
