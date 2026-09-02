@@ -166,3 +166,79 @@ def test_root_listing_is_unchanged_by_the_refactor(wheel):
                                 "settings", "customSongs"]
     assert shape["firstCategory"] == "Pop"
     assert shape["lastCategory"] == "創作譜面"
+
+# What toSelectDifficulty actually does with each kind of entry during a
+# session, rather than what the predicate returns. Testing only the
+# predicate is what let an inverted branch through once already.
+DISPATCH = """
+(action) => {
+    const realSession = p2.session, realSend = p2.send
+    const sent = []
+    const before = {screen: __ss.state.screen, search: !!__ss.search}
+    try {
+        p2.session = true
+        p2.send = (type, value) => sent.push(type)
+        __ss.state.selLock = false
+        __ss.state.locked = 0
+        const index = action === null
+            ? __ss.songs.findIndex(s => s.courses)
+            : __ss.songs.findIndex(s => s.action === action)
+        if (index < 0) return null
+        __ss.selectedSong = index
+        __ss.state.move = 0
+        __ss.toSelectDifficulty()
+        return {
+            sentSongsel: sent.includes("songsel"),
+            openedDifficulty: __ss.state.screen === "difficulty" && before.screen !== "difficulty",
+            openedSearch: !!__ss.search && !before.search,
+            // clean() stops the redraw loop, so this catches an entry
+            // navigating away to another screen entirely
+            leftSongSelect: __ss.redrawRunning === false,
+        }
+    } finally {
+        p2.session = realSession
+        p2.send = realSend
+        __ss.removeSearch && __ss.removeSearch()
+        __ss.state.screen = "song"
+    }
+}
+"""
+
+
+@pytest.fixture
+def dispatch(wheel):
+    def run(action):
+        return wheel.page.evaluate(DISPATCH, action)
+    return run
+
+
+def test_a_song_is_sent_to_the_peer_not_opened_locally(dispatch):
+    """Both clients open difficulty select together, on the peer's echo."""
+    result = dispatch(None)
+    assert result["sentSongsel"] is True, "the peer was never told"
+    assert result["openedDifficulty"] is False, "opened locally, ahead of the peer"
+
+
+def test_search_opens_locally_in_a_session(dispatch):
+    """Search re-enters here with a real song once something is chosen,
+    and that selection is what syncs."""
+    result = dispatch("search")
+    assert result["openedSearch"] is True, "Search did nothing in a session"
+
+
+def test_random_is_not_swallowed_in_a_session(dispatch):
+    """Random picks an index locally and moves to it; the move syncs."""
+    result = dispatch("random")
+    assert result["sentSongsel"] is False, "random should not send a selection itself"
+
+
+@pytest.mark.parametrize("action", ["settings", "about", "tutorial"])
+def test_blocked_entries_do_nothing_in_a_session(dispatch, action):
+    result = dispatch(action)
+    if result is None:
+        pytest.skip(f"no {action} entry in this build")
+    assert result["sentSongsel"] is False
+    assert result["openedDifficulty"] is False
+    assert result["openedSearch"] is False
+    assert result["leftSongSelect"] is False, \
+        f"{action} navigated away during a session instead of being ignored"

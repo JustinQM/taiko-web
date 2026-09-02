@@ -1542,22 +1542,25 @@ class SongSelect{
 		}
 	}
 	
-	// Which course-less entries cannot be used during a netplay session.
-	// The guard below and the three sites that grey entries out in redraw
-	// have to agree: they disagreed before, which left Search selectable
-	// but drawn as though it were not.
-	//
-	// Random and Search are both safe in a session -- each ends up calling
-	// toSelectDifficulty, which sends "songsel" to the peer exactly as a
-	// normal selection does.
+	// Entries a session lets the local player act on directly, rather than
+	// sending to the peer first. Both of these come back through
+	// toSelectDifficulty afterwards -- random picks an index and moves to
+	// it, search sets an index and re-enters -- and the move is what syncs.
+	entryActsLocallyInSession(song){
+		return song.action === "random" || song.action === "search"
+	}
+	
+	// Which entries are greyed out during a session: anything with an
+	// action that is not one of the two above. The guard below and the
+	// three sites in redraw that draw entries greyed out used to carry
+	// their own copies of this and disagreed about Search.
 	entryDisabledInSession(song){
-		return !!(p2.session && song.action
-			&& song.action !== "random" && song.action !== "search")
+		return !!(p2.session && song.action && !this.entryActsLocallyInSession(song))
 	}
 	
 	toSelectDifficulty(fromP2){
 		var currentSong = this.songs[this.selectedSong]
-		if(p2.session && !fromP2 && !this.entryDisabledInSession(currentSong)){
+		if(p2.session && !fromP2 && !this.entryActsLocallyInSession(currentSong)){
 			if(this.songs[this.selectedSong].courses){
 				if(!this.state.selLock){
 					this.state.selLock = true
