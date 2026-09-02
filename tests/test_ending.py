@@ -17,18 +17,23 @@ DRIVE = """
     const ctx = {
         globalAlpha: 1, globalCompositeOperation: "source-over",
         save(){}, restore(){}, translate(){}, scale(){}, rotate(){},
-        drawImage(img, sx, sy, sw, sh, dx, dy){
-            drawn.push({sy: sy, sh: sh})
+        drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh){
+            drawn.push({name: current, x: dx + dw / 2, y: dy + dh / 2})
         },
     }
     // Names are resolved through assets.image; record which are asked for.
     const asked = []
+    let current = null
     const realSheet = View.prototype.endingSheet
     view.endingSheet = function(name, ...rest){
         asked.push(name)
+        current = name
         return realSheet.call(this, name, ...rest)
     }
     view.player = args.second ? 2 : 1
+    // Everything lines up with the play line rather than with fixed
+    // screen coordinates, so the driver has to supply one.
+    view.slotPos = {x: 413, y: args.second ? 617 : 257, size: 106, paddingLeft: 332}
     view.rules = {clearReached: () => args.cleared}
     // A real song is well into its elapsed time by the time it ends;
     // zero would read as "the fade has not started".
@@ -38,7 +43,16 @@ DRIVE = """
         getGlobalScore: () => ({gauge: 100, bad: args.bad, ok: 0}),
     }
     view.drawEndingAnimation(ctx, 1280, 720)
-    return {asked: [...new Set(asked)], drew: drawn.length}
+    // How far apart the two sticks are, and where things are centred.
+    const sticks = drawn.filter(d => /bachio_[lr]_(in|out)/.test(d.name || ""))
+    const spread = sticks.length > 1
+        ? Math.max(...sticks.map(s => s.x)) - Math.min(...sticks.map(s => s.x)) : 0
+    return {
+        asked: [...new Set(asked)],
+        drew: drawn.length,
+        spread: spread,
+        centres: {y: view.slotPos.y},
+    }
 }
 """
 
@@ -112,10 +126,28 @@ def test_the_sticks_leave_after_landing(drive):
     assert "yatai_ending_bachio_l_in" not in drive(500)["asked"]
 
 
-def test_the_sticks_are_gone_once_they_have_left(drive):
-    asked = drive(1500)["asked"]
-    assert not any(a.startswith("yatai_ending_bachio") for a in asked), \
-        f"the sticks are still on screen: {asked}"
+def test_the_sticks_stay_once_they_have_swept_apart(drive):
+    """The skin keeps drawing the last out-frame until the results screen,
+    rather than the sticks vanishing mid-animation."""
+    asked = drive(3000)["asked"]
+    assert "yatai_ending_bachio_l_out" in asked
+    assert "yatai_ending_bachio_l_in" not in asked
+
+
+def test_the_sticks_sweep_apart_from_the_centre(drive):
+    """Without this they only blinked between frames, which read as a
+    flicker rather than a movement."""
+    spread = drive(0)["spread"], drive(150)["spread"], drive(400)["spread"]
+    assert spread[0] == pytest.approx(0), "they did not start together"
+    assert spread[2] > 300, f"they barely moved: {spread}"
+    assert spread[1] < spread[2], "the sweep runs backwards"
+
+
+def test_everything_lines_up_with_the_play_line(drive):
+    """The skin's coordinates are for a fixed stage; this canvas is
+    whatever the window is, so the play line is the anchor."""
+    centres = drive(600)["centres"]
+    assert centres["y"] == 257, f"drawn off the play line: {centres}"
 
 
 def test_it_draws_for_the_second_player_too(drive):

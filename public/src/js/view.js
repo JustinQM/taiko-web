@@ -1453,18 +1453,24 @@
 			panel = full ? "yatai_ending_full_combo" : "yatai_ending_clear"
 		}
 		
-		// The sheet is laid out for a 1280x720 stage; scale to whatever the
-		// canvas actually is, as the rest of the view does.
-		var scale = winW / 1280
-		var second = this.player === 2
+		// Positioned off the view's own geometry rather than the skin's
+		// screen coordinates: those are for a fixed 1280x720 stage, and
+		// this canvas is whatever the window is. The play line is the
+		// thing everything should line up with, and slotPos is where the
+		// notes are hit.
+		var slot = this.slotPos
+		if(!slot){
+			return
+		}
+		var centreX = (slot.paddingLeft + winW) / 2
+		var centreY = slot.y
 		
 		ctx.save()
-		ctx.scale(scale, scale)
-		this.drawEndingFans(ctx, elapsed, second)
-		this.drawEndingSticks(ctx, elapsed, second)
-		this.drawEndingPanel(ctx, elapsed, panel, full, second)
+		this.drawEndingFans(ctx, elapsed, centreX, centreY)
+		this.drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY)
+		this.drawEndingSticks(ctx, elapsed, centreX, centreY)
 		if(full){
-			this.drawEndingConfetti(ctx, elapsed, second)
+			this.drawEndingConfetti(ctx, elapsed, centreX, centreY)
 		}
 		ctx.restore()
 	}
@@ -1496,14 +1502,13 @@
 			x - sheet.w / 2, y - sheet.h / 2, sheet.w, sheet.h)
 	}
 	
-	drawEndingFans(ctx, elapsed, second){
+	drawEndingFans(ctx, elapsed, centreX, centreY){
 		if(elapsed > 540){
 			return
 		}
 		var frame = Math.floor(elapsed / 90)
-		var y = second ? 373 : 197
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), 400, y)
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), 1020, y)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), centreX - 310, centreY)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), centreX + 310, centreY)
 	}
 	
 	/*
@@ -1513,39 +1518,50 @@
 	 * inside 600ms -- far quicker than it looks, which is why guessing at
 	 * it did not read right.
 	 */
-	drawEndingSticks(ctx, elapsed, second){
-		var y = second ? 363 : 187
+	/*
+	 * The drumsticks, on the play line.
+	 *
+	 * They start together at the centre and sweep apart: the skin moves
+	 * each 200px over 117ms on an ease-out quadratic after a 150ms delay,
+	 * and without that they only blinked between frames and read as a
+	 * flicker rather than a movement.
+	 *
+	 * They stay on screen once they have finished, holding the last
+	 * out-frame until the results screen takes over. Everything else is
+	 * from Graphics/game/animation.json: a 150ms fade in, two in-frames
+	 * over 267ms, then four out-frames at 50ms each.
+	 */
+	drawEndingSticks(ctx, elapsed, centreX, centreY){
 		var name, frames, frame
-		var alpha = 1
-		if(elapsed < 150){
+		if(elapsed < 417){
 			name = "in"
 			frames = 2
-			frame = 0
-			alpha = elapsed / 150
-		}else if(elapsed < 300){
-			name = "in"
-			frames = 2
-			frame = 0
-		}else if(elapsed < 417){
-			name = "in"
-			frames = 2
-			frame = 1
-		}else if(elapsed < 617){
+			frame = elapsed < 300 ? 0 : 1
+		}else{
 			name = "out"
 			frames = 4
-			frame = Math.floor((elapsed - 417) / 50)
-		}else{
-			return
+			frame = Math.min(3, Math.floor((elapsed - 417) / 50))
 		}
+		
+		var separating = Math.min(1, Math.max(0, (elapsed - 150) / 117))
+		// Ease-out quadratic, as the skin has it.
+		var apart = 200 * (separating * (2 - separating))
+		
 		ctx.save()
-		ctx.globalAlpha *= alpha
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_l_" + name, frame, frames), 701, y)
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_r_" + name, frame, frames), 759, y)
+		ctx.globalAlpha *= Math.min(1, elapsed / 150)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_l_" + name, frame, frames),
+			centreX - apart, centreY)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_r_" + name, frame, frames),
+			centreX + apart, centreY)
 		ctx.restore()
-		// The impact, as they land.
-		if(elapsed >= 400 && elapsed < 560){
-			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), 579, second ? 433 : 257)
-			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), 909, second ? 433 : 257)
+		
+		// The impact, where each one lands.
+		if(elapsed >= 260 && elapsed < 420){
+			ctx.save()
+			ctx.globalAlpha *= 1 - (elapsed - 260) / 160
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), centreX - apart, centreY)
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), centreX + apart, centreY)
+			ctx.restore()
 		}
 	}
 	
@@ -1555,16 +1571,14 @@
 	 * word assembles itself. Its highlight fades in at 450ms over 183ms
 	 * and straight back out. Those are the skin's numbers too.
 	 */
-	drawEndingPanel(ctx, elapsed, panel, full, second){
+	drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY){
 		if(elapsed < 150){
 			return
 		}
 		var since = elapsed - 150
-		var y = second ? (full ? 373 : 393) : (full ? 197 : 217)
-		var x = full ? 589 : (panel === "yatai_ending_fail" ? 629 : 639)
 		
 		ctx.save()
-		ctx.translate(x, y)
+		ctx.translate(centreX, centreY)
 		
 		var pieces = panel === "yatai_ending_clear" ? 5 : 1
 		var name = pieces > 1 ? "yatai_ending_clear_separated" : panel
@@ -1614,12 +1628,12 @@
 	
 	// Not from the skin: YataiDON throws its confetti from the character,
 	// which we do not have. This is a plain fall behind the panel.
-	drawEndingConfetti(ctx, elapsed, second){
+	drawEndingConfetti(ctx, elapsed, centreX, centreY){
 		if(elapsed < 300){
 			return
 		}
 		var since = elapsed - 300
-		var baseY = second ? 300 : 120
+		var baseY = centreY - 140
 		for(var i = 0; i < 24; i++){
 			// Deterministic scatter: the same piece is in the same place
 			// every time, which matters when two players are watching the
@@ -1632,7 +1646,7 @@
 				continue
 			}
 			var fall = (t / 3200) % 1
-			var x = 340 + seed2 * 600
+			var x = centreX - 300 + seed2 * 600
 			var y = baseY + fall * 330
 			ctx.save()
 			ctx.globalAlpha *= Math.min(1, (1 - fall) * 3)

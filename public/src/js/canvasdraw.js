@@ -1667,15 +1667,27 @@
 		var elapsed = now - this.soulFireStart[key]
 		var frames = 8
 		var fh = img.naturalHeight / frames
-		var frame = Math.floor(elapsed / 75) % frames
+		// 400ms for the eight frames, which is the skin's own rate.
+		var frame = Math.floor(elapsed / 50) % frames
+		
+		// This is not a flame drawn around the glyph, it is the soul shape
+		// itself: a round body with a flame licking off it, meant to sit
+		// behind the glyph with the body under it. So the anchor is the
+		// body, not the middle of the frame -- centring the frame put the
+		// body down and left of the glyph, which is what it looked like.
+		//
+		// The body is the part present in all eight frames: 130x135 at
+		// (13,123) of a 256x272 frame, so its centre is 0.305 across and
+		// 0.700 down. The skin draws the frame at 0.75 for a body of about
+		// 1.7 times its glyph; ours is 30 wide, so the frame is 102.
+		var w = 102
+		var h = w * fh / img.naturalWidth
 		
 		ctx.save()
 		ctx.globalAlpha *= Math.min(1, elapsed / 166)
 		ctx.globalCompositeOperation = "lighter"
-		var w = 64
-		var h = w * fh / img.naturalWidth
 		ctx.drawImage(img, 0, frame * fh, img.naturalWidth, fh,
-			-w / 2, -h / 2 - 4, w, h)
+			-w * 0.305, -h * 0.700, w, h)
 		ctx.restore()
 	}
 	
