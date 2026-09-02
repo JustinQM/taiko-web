@@ -22,11 +22,12 @@ def test_entering_a_folder_lists_its_songs(wheel):
         path: __ss.navigator.path.map(f => f.id),
         total: __ss.songs.length,
         first: __ss.songs[0].action,
-        allSongs: __ss.songs.slice(1).every(s => !!s.courses),
+        // songs, with a way back out interleaved through them
+        kinds: [...new Set(__ss.songs.slice(1).map(s => s.action || "song"))].sort(),
     })""")
     assert inside["path"] == ["genre:Pop"]
+    assert inside["kinds"] == ["back", "song"], f"unexpected entries: {inside['kinds']}"
     assert inside["first"] == "back", "a folder listing starts with a back box"
-    assert inside["allSongs"], "a folder holds songs and nothing else"
     assert inside["total"] > root_total
 
 
@@ -224,3 +225,40 @@ def test_random_can_reach_a_nested_song(wheel):
         "t => __ss.navigator.jumpToPath(t.path, t.index)", target)
     landed = wheel.page.evaluate("i => __ss.navigator.items[i].id", index)
     assert landed == nested, "landed on the wrong song"
+
+
+def test_a_way_out_appears_every_ten_songs(wheel):
+    """One back box at the top of several hundred songs is not a way out."""
+    wheel.enter_folder()
+    layout = wheel.page.evaluate("""() => {
+        const backs = []
+        __ss.songs.forEach((s, i) => { if (s.action === "back") backs.push(i) })
+        return {backs: backs.slice(0, 6), total: __ss.songs.length,
+                every: SongNavigator.backEvery}
+    }""")
+    assert layout["backs"][0] == 0
+    gaps = [b - a for a, b in zip(layout["backs"], layout["backs"][1:])]
+    assert set(gaps) == {layout["every"] + 1}, \
+        f"back boxes are not evenly spaced: {layout['backs']}"
+
+
+def test_the_interleaved_back_boxes_still_ascend(wheel):
+    wheel.enter_folder()
+    second = wheel.page.evaluate(
+        "() => __ss.songs.findIndex((s, i) => i > 0 && s.action === 'back')")
+    wheel.select_index(second)
+    wheel.page.evaluate("() => __ss.toSelectDifficulty()")
+    wheel.page.wait_for_function("() => __ss.navigator.path.length === 0", timeout=5000)
+    assert wheel.errors == []
+
+
+def test_random_still_lands_on_its_song_with_backs_interleaved(wheel):
+    """The listing offset is no longer a simple count, so it is asked for
+    rather than worked out."""
+    for _ in range(5):
+        target = wheel.page.evaluate("() => __ss.navigator.randomSong()")
+        landed = wheel.page.evaluate("""t => {
+            const i = __ss.navigator.jumpToPath(t.path, t.index)
+            return __ss.navigator.items[i].action || "song"
+        }""", target)
+        assert landed == "song", f"random landed on a {landed}"

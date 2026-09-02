@@ -57,7 +57,10 @@ class Settings{
 			},
 			songSelectSpeed: {
 				type: "number",
-				default: 2,
+				// 1x is YataiDON's 166ms per step. The old default of 2x
+				// was compensating for a wheel that spent most of each
+				// step resizing a box rather than moving.
+				default: 1,
 				min: 0.25,
 				max: 10,
 				step: 25,

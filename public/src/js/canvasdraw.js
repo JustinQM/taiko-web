@@ -1125,6 +1125,16 @@
 			ctx.translate(2, -2)
 			ctx.fillStyle = "#d9d6ce"
 			ctx.fill(this.optionsPath.main)
+		}else if(config.iconName === "favorite"){
+			ctx.translate(config.x - 10.5 * 1.9, config.y - 9.5 * 1.9)
+			ctx.scale(1.9, 1.9)
+			ctx.lineWidth = 4
+			ctx.strokeStyle = "#000"
+			ctx.stroke(this.diffStarPath)
+			// Outlined when it is not a favourite, filled when it is, so
+			// the button says which it is without a label.
+			ctx.fillStyle = config.on ? "#ffdb2c" : "#f0efe8"
+			ctx.fill(this.diffStarPath)
 		}else if(config.iconName === "sounds"){
 			var note = assets.image["yatai_diff_sounds_icon_user"]
 			if(note){

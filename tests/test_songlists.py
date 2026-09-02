@@ -226,3 +226,44 @@ def test_the_folder_lists_recent_songs_newest_first(wheel):
 def test_nothing_is_backfilled(wheel):
     """Scores that predate this get no date invented for them."""
     assert wheel.page.evaluate("() => recentlyPlayed.songs.length") == 0
+
+
+# ------------------------------------------------- the favourite button
+
+def test_favourite_is_a_button_on_the_song(wheel):
+    """Not a keybind: the drum and the arrows are the whole vocabulary."""
+    options = wheel.page.evaluate("() => __ss.diffOptions.map(o => o.iconName)")
+    assert options == ["back", "options", "sounds", "favorite"]
+
+
+def test_the_button_toggles_the_song_it_is_shown_with(wheel):
+    wheel.enter_folder()
+    song = wheel.page.evaluate("() => __ss.songs[__ss.selectedSong].id")
+
+    wheel.page.evaluate("() => __ss.toSelectDifficulty()")
+    wheel.page.wait_for_function("() => __ss.state.screen === 'difficulty'", timeout=5000)
+
+    wheel.page.evaluate("() => { __ss.selectedDiff = 3; __ss.toggleFavorite() }")
+    assert wheel.page.evaluate("id => favorites.has(id)", song) is True
+
+    wheel.page.evaluate("() => __ss.toggleFavorite()")
+    assert wheel.page.evaluate("id => favorites.has(id)", song) is False
+    assert wheel.errors == []
+
+
+def test_the_button_shows_which_state_it_is_in(wheel):
+    """Filled when the song is a favourite, outlined when it is not."""
+    wheel.enter_folder()
+    song = wheel.page.evaluate("() => __ss.songs[__ss.selectedSong].id")
+    off = wheel.page.evaluate("id => favorites.has(id)", song)
+    wheel.page.evaluate("id => favorites.toggle(id)", song)
+    on = wheel.page.evaluate("id => favorites.has(id)", song)
+    assert (off, on) == (False, True)
+
+
+def test_no_favourite_keybind_remains(wheel):
+    bound = wheel.page.evaluate("""() => {
+        const keys = __ss.keyboard.keys || {}
+        return Object.keys(keys).includes("favorite")
+    }""")
+    assert bound is False, "the keybind is still registered"

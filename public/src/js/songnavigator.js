@@ -10,6 +10,10 @@
  * array too, and descending swaps the array and resets the index.
  */
 class SongNavigator{
+	// A way out every this many songs, as YataiDON does. One back box at
+	// the top of a folder of several hundred is not a way out.
+	static backEvery = 10
+	
 	constructor(...args){
 		this.init(...args)
 	}
@@ -173,13 +177,13 @@ class SongNavigator{
 			if(found){
 				return
 			}
-			var here = folder.songs.indexOf(song)
-			if(here !== -1){
+			if(folder.songs.indexOf(song) !== -1){
+				// Ask the listing rather than working the offset out:
+				// back boxes are interleaved through it, so counting by
+				// hand would drift.
 				found = {
 					path: path,
-					// the listing starts with the back box, then any
-					// sub-folders, then the songs
-					index: 1 + (folder.children ? folder.children.length : 0) + here
+					index: this.buildFolder(folder).indexOf(song)
 				}
 				return
 			}
@@ -356,22 +360,40 @@ class SongNavigator{
 	/*
 	 * A folder's listing: a back box, then its songs.
 	 */
-	buildFolder(folder){
-		if(folder.collection){
-			folder.songs = folder.collection()
-		}
-		var items = [{
+	backItem(folder){
+		return {
 			title: strings.back,
 			category: folder.title,
 			originalCategory: folder.originalCategory,
 			skin: this.config.skin.back,
 			action: "back"
-		}]
-		// Sub-folders before songs, as they sort on disk.
+		}
+	}
+	
+	/*
+	 * A folder's listing: a back box, its sub-folders, then its songs with
+	 * another back box every backEvery of them.
+	 *
+	 * The repeats are YataiDON's, and they are what make a folder of
+	 * several hundred songs usable: with one back box at the top, leaving
+	 * a genre means scrolling all the way back to it. Sub-folders come
+	 * before songs, as they sort on disk.
+	 */
+	buildFolder(folder){
+		if(folder.collection){
+			folder.songs = folder.collection()
+		}
+		var items = [this.backItem(folder)]
 		if(folder.children){
 			items = items.concat(folder.children.map(child => this.folderItem(child)))
 		}
-		return items.concat(folder.songs)
+		folder.songs.forEach((song, i) => {
+			if(i > 0 && i % SongNavigator.backEvery === 0){
+				items.push(this.backItem(folder))
+			}
+			items.push(song)
+		})
+		return items
 	}
 	
 	/*

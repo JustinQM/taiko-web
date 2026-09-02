@@ -81,7 +81,7 @@ def test_song_select_speed_is_a_number_setting(game):
     game.open_settings()
     row = game.row("Song Select Speed")
     assert row["value"].strip().endswith("x"), f"unformatted: {row['value']!r}"
-    assert game.setting("songSelectSpeed") == 2, "default should be 2"
+    assert game.setting("songSelectSpeed") == 1, "1x should be the default"
     assert game.errors == []
 
 
@@ -101,13 +101,13 @@ def test_song_select_speed_persists_and_is_applied(game):
         )
 
     at_four = step_duration()
-    game.page.evaluate("() => settings.setItem('songSelectSpeed', 2)")
-    at_two = step_duration()
+    game.page.evaluate("() => settings.setItem('songSelectSpeed', 1)")
+    at_one = step_duration()
 
-    assert at_four == pytest.approx(at_two / 2), \
-        f"the setting does not scale the step: 2x gave {at_two}, 4x gave {at_four}"
-    # The default is YataiDON's 166ms per step.
-    assert at_two == pytest.approx(166, abs=1), f"default step is {at_two}ms"
+    assert at_four == pytest.approx(at_one / 4), \
+        f"the setting does not scale the step: 1x gave {at_one}, 4x gave {at_four}"
+    # 1x is YataiDON's 166ms per step.
+    assert at_one == pytest.approx(166, abs=1), f"1x step is {at_one}ms"
     assert game.errors == []
 
 

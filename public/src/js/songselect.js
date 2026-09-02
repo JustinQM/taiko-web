@@ -180,6 +180,13 @@ class SongSelect{
 			iconName: "sounds",
 			iconFill: "#ffccd8",
 			letterSpacing: -4
+		},
+		{
+			text: strings.favorites.toggle,
+			fill: "#ffc44d",
+			iconName: "favorite",
+			iconFill: "#ffe6a8",
+			letterSpacing: 0
 		}]
 		this.optionsList = [strings.none, strings.auto, strings.netplay, strings.songMods.x2, strings.songMods.x3, strings.songMods.x4,strings.songMods.doron, strings.songMods.reverse, strings.songMods.half_shuffle, strings.songMods.shuffle, strings.songMods.hardcore, strings.songMods.allDon, strings.songMods.allKat]
 		this.optionRows = this.getOptionRows()
@@ -291,14 +298,28 @@ class SongSelect{
 		// than travelling between them. At 0.15 and 0.05 the slide is 0.6
 		// of the step and the resize happens around it.
 		this.songSelecting = {
-			speed: 333 / settings.getItem("songSelectSpeed"),
+			speed: 166 / settings.getItem("songSelectSpeed"),
 			resize: 0.15,
 			scrollDelay: 0.05,
-			// An input arriving within this of the last one means the
-			// player is holding or mashing, and turns a single step into a
-			// jump of skipBy with no slide, as YataiDON does at 50ms.
+			// A deliberate second press this soon after the first is a
+			// request to move further, and becomes a jump of skipBy that
+			// lands immediately. YataiDON uses the same window.
+			//
+			// Only genuine presses count. Its input is drum hits, which do
+			// not repeat while held; ours includes keyboard auto-repeat at
+			// around 30ms, and treating those as deliberate turned a held
+			// arrow into ten songs every repeat -- hundreds a second, with
+			// a sound for each.
 			skipWindow: 50,
-			skipBy: 10
+			skipBy: 10,
+			// The floor on how often a held direction may start a new
+			// move. Without it the wheel steps once per auto-repeat, which
+			// is far faster than it can be read or heard.
+			repeatInterval: 110,
+			// The floor on how often the step sound plays, which is longer
+			// than a step: a held direction should be heard moving, not
+			// heard as a drone.
+			soundInterval: 220
 		}
 		
 		this.startPreview(true)
@@ -315,9 +336,7 @@ class SongSelect{
 			ctrl: ["ctrl"],
 			shift: ["shift"],
 			mute: ["q"],
-			search: ["f"],
-			// YataiDON puts this on space, which is already confirm here.
-			favorite: ["s"]
+			search: ["f"]
 		}, this.keyPress.bind(this))
 		this.gamepad = new Gamepad({
 			confirm: ["b", "start", "ls", "rs"],
@@ -1199,7 +1218,7 @@ class SongSelect{
 					}
 				}
 				else{
-					this.moveToSong(-1)
+					this.moveToSong(-1, false, repeat)
 				}
 			}else if(name === "right"){
 				if(shift){
@@ -1213,10 +1232,8 @@ class SongSelect{
 					}
 				}
 				else{
-					this.moveToSong(1)
+					this.moveToSong(1, false, repeat)
 				}
-			}else if(name === "favorite" && !repeat){
-				this.toggleFavorite()
 			}else if(name === "jump_left" && !repeat){
 				this.categoryJump(-1)
 			}else if(name === "jump_right" && !repeat){
@@ -1254,6 +1271,8 @@ class SongSelect{
 					this.openOptionsMenu()
 				}else if(this.selectedDiff === 2){
 					this.toSound(1)
+				}else if(this.selectedDiff === 3){
+					this.toggleFavorite()
 				}else{
 					this.toLoadSong(this.selectedDiff - this.diffOptions.length, shift, ctrl)
 				}
@@ -1487,7 +1506,13 @@ class SongSelect{
 			var previousSelectedSong = this.selectedSong
 			
 			if(!isJump){
-				if(!isSkip){
+				// Every committed step used to click. Held, that is a step
+				// every repeat and the clicks run together into a drone,
+				// so they thin out once the wheel is moving quickly and
+				// the movement itself carries the feedback.
+				var sinceSound = this.getMS() - (this.lastMoveSound || 0)
+				if(!isSkip && sinceSound >= this.songSelecting.soundInterval){
+					this.lastMoveSound = this.getMS()
 					this.playSound("se_ka", 0, this.lastMoveBy)
 				}
 				this.selectedSong = this.mod(this.songs.length, this.selectedSong + this.state.move)
@@ -1555,7 +1580,7 @@ class SongSelect{
 			}
 	}
 	
-	moveToSong(moveBy, fromP2){
+	moveToSong(moveBy, fromP2, repeat){
 		var ctrl = false
 		if(moveBy == 7.1){
 			moveBy = 7
@@ -1570,16 +1595,21 @@ class SongSelect{
 		else{
 			var ms = this.getMS()
 		}
-		// Holding or mashing turns single steps into a jump rather than
-		// stepping once per input. YataiDON does the same at 50ms, and it
-		// is what makes a wheel this long navigable at all.
-		//
-		// Like its ctrl jump, a skip lands immediately: starting the clock
-		// before the animation window means redraw finds it already
-		// finished, so the wheel snaps instead of sliding ten boxes. That
-		// is what YataiDON's snap argument does.
 		var now = this.getMS()
-		if(!ctrl && Math.abs(moveBy) === 1 && now - (this.lastMoveAt || 0) <= this.songSelecting.skipWindow){
+		var sinceLast = now - (this.lastMoveAt || 0)
+		
+		if(repeat){
+			// A held direction steps at a readable rate rather than once
+			// per auto-repeat, and never becomes a jump: holding is not
+			// the same gesture as pressing twice quickly.
+			if(sinceLast < this.songSelecting.repeatInterval){
+				return
+			}
+		}else if(!ctrl && Math.abs(moveBy) === 1 && sinceLast <= this.songSelecting.skipWindow){
+			// Two deliberate presses in quick succession. Like the ctrl
+			// jump, this lands immediately: starting the clock before the
+			// animation window means redraw finds it already finished, so
+			// the wheel snaps rather than sliding ten boxes past.
 			moveBy *= this.songSelecting.skipBy
 			ctrl = true
 			ms = now - 799
@@ -2603,7 +2633,10 @@ class SongSelect{
 							ctx: ctx,
 							x: _x,
 							y: _y + 28,
-							iconName: this.diffOptions[i].iconName
+							iconName: this.diffOptions[i].iconName,
+							on: this.diffOptions[i].iconName === "favorite"
+								&& typeof favorites !== "undefined" && favorites
+								&& favorites.has(this.songs[this.selectedSong].id)
 						})
 						
 						var text = this.diffOptions[i].text

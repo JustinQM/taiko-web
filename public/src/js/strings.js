@@ -88,6 +88,13 @@ var translations = {
 			tw: "收藏",
 			ko: "즐겨찾기"
 		},
+		toggle: {
+			ja: "お気に入り",
+			en: "Favorite",
+			cn: "收藏",
+			tw: "收藏",
+			ko: "즐겨찾기"
+		},
 		empty: {
 			ja: "お気に入りがありません",
 			en: "No favorites yet",

@@ -121,3 +121,63 @@ def test_a_lone_input_is_still_a_single_step(wheel):
     moved = wheel.wheel()["selected"] - start
     assert moved == 1, f"a single input moved {moved}"
     assert wheel.errors == []
+
+
+def test_holding_a_direction_does_not_jump(wheel):
+    """A held key repeats at around 30ms, which is not the same gesture as
+    pressing twice quickly. Treating it as one turned a held arrow into
+    ten songs per repeat."""
+    wheel.settle()
+    start = wheel.wheel()["selected"]
+    moved = wheel.page.evaluate("""() => {
+        const from = __ss.selectedSong
+        // three auto-repeats in the time one deliberate double-tap fits
+        for (let i = 0; i < 3; i++) __ss.moveToSong(1, false, true)
+        return __ss.state.move
+    }""")
+    wheel.settle()
+    assert wheel.wheel()["selected"] - start <= 1, \
+        "a held direction jumped rather than stepping"
+
+
+def test_holding_steps_at_a_readable_rate(wheel):
+    """Not once per auto-repeat, which is faster than it can be read."""
+    wheel.settle()
+    start = wheel.wheel()["selected"]
+    wheel.page.evaluate("""async () => {
+        for (let i = 0; i < 10; i++) {
+            __ss.moveToSong(1, false, true)
+            await new Promise(r => setTimeout(r, 30))
+        }
+    }""")
+    wheel.settle()
+    moved = wheel.wheel()["selected"] - start
+    assert 1 <= moved <= 4, f"300ms of holding moved {moved} songs"
+
+
+def test_a_deliberate_double_tap_still_jumps(wheel):
+    wheel.settle()
+    start = wheel.wheel()["selected"]
+    skip_by = wheel.page.evaluate("() => __ss.songSelecting.skipBy")
+    wheel.page.evaluate("() => __ss.moveToSong(1, false, false)")
+    wheel.page.wait_for_timeout(10)
+    wheel.page.evaluate("() => __ss.moveToSong(1, false, false)")
+    wheel.settle()
+    assert wheel.wheel()["selected"] - start == 1 + skip_by
+
+
+def test_the_step_sound_thins_out_when_moving_quickly(wheel):
+    """Held, a click per step runs together into a drone."""
+    played = wheel.page.evaluate("""async () => {
+        const real = __ss.playSound.bind(__ss)
+        let kas = 0
+        __ss.playSound = (id, ...rest) => { if (id === "se_ka") kas++; return real(id, ...rest) }
+        try {
+            for (let i = 0; i < 12; i++) {
+                __ss.moveToSong(1, false, true)
+                await new Promise(r => setTimeout(r, 30))
+            }
+            return kas
+        } finally { __ss.playSound = real }
+    }""")
+    assert played <= 3, f"360ms of holding played {played} step sounds"
