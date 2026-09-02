@@ -79,11 +79,29 @@ class Scoresheet{
 		
 		this.session = p2.session
 		if(this.session){
+			// Skips ride on "note" rather than a message type of their
+			// own: the multiplayer server forwards it already, and a peer
+			// running stock taiko-web reads the score/ms/dai fields as an
+			// ordinary note and ignores the rest.
+			var noteValue = p2.getMessage("note")
+			if(noteValue){
+				if(noteValue.skipResults){
+					this.toScoresShown(true)
+				}else if(noteValue.donSound){
+					this.playSound("neiro_1_don", p2.player === 1 ? 1 : 0)
+				}
+			}
 			if(p2.getMessage("songsel")){
 				this.toSongsel(true)
 			}
 			pageEvents.add(p2, "message", response => {
-				if(response.type === "songsel"){
+				if(response.type === "note" && response.value){
+					if(response.value.skipResults){
+						this.toScoresShown(true)
+					}else if(response.value.donSound){
+						this.playSound("neiro_1_don", p2.player === 1 ? 1 : 0)
+					}
+				}else if(response.type === "songsel"){
 					this.toSongsel(true)
 				}
 			})
@@ -148,11 +166,29 @@ class Scoresheet{
 			this.toSongsel()
 		}
 	}
-	toScoresShown(){
-		if(!p2.session){
+	toScoresShown(fromP2){
+		// Guarding on the screen rather than on !p2.session is what makes
+		// this reachable in a session at all; it still only fires while
+		// the scores are still fading in.
+		if(this.state.screen === "fadeIn"){
 			this.state.screen = "scoresShown"
 			this.state.screenMS = this.getMS()
-			this.controller.playSound("neiro_1_don", 0, true)
+			if(!p2.session){
+				this.controller.playSound("neiro_1_don", 0, true)
+			}
+		}
+		if(p2.session){
+			if(fromP2){
+				this.playSound("neiro_1_don", p2.player === 1 ? 1 : 0)
+			}else{
+				this.playSound("neiro_1_don", p2.player === 1 ? 0 : 1)
+				p2.send("note", {
+					score: 450,
+					ms: 0,
+					dai: 0,
+					skipResults: true
+				})
+			}
 		}
 	}
 	toSongsel(fromP2){
@@ -160,9 +196,19 @@ class Scoresheet{
 			snd.musicGain.fadeOut(0.5)
 			this.state.screen = "fadeOut"
 			this.state.screenMS = this.getMS()
-			if(!fromP2){
+			if(!fromP2 && !p2.session){
 				this.controller.playSound("neiro_1_don", 0, true)
 			}
+		}
+		if(p2.session && !fromP2){
+			this.playSound("neiro_1_don", p2.player === 1 ? 0 : 1)
+			p2.send("note", {
+				score: 450,
+				ms: 0,
+				dai: 0,
+				donSound: true
+			})
+			p2.send("songsel")
 		}
 	}
 	
@@ -420,7 +466,7 @@ class Scoresheet{
 			if(this.state.hasPointer === 0){
 				this.state.hasPointer = 1
 				if(!this.state.pointerLocked){
-					this.canvas.style.cursor = this.session ? "" : "pointer"
+					this.canvas.style.cursor = "pointer"
 				}
 			}
 			ctx.save()
