@@ -1,0 +1,79 @@
+# The production stack. `docker compose up --build` brings up a working
+# deployment from a clean clone; the only thing it needs first is a
+# config.py (copy config.example.py) next to this file.
+#
+# It serves upstream's assets, a good part of which are placeholders, so
+# the game works but looks unstyled. A private overlay image supplies the
+# real ones -- see README.md.
+#
+# Songs are a bind mount so they survive image changes and can be rsynced
+# in from outside. The databases are named volumes instead: under rootless
+# podman a bind-mounted data directory ends up owned by a container UID
+# that the host user cannot delete without `podman unshare`.
+services:
+  mongo:
+    image: docker.io/library/mongo:6
+    restart: unless-stopped
+    volumes:
+      - mongo:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: taiko
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+    command: redis-server --appendonly yes
+
+  app:
+    build: .
+    image: ${IMAGE:-taiko-web}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ${CONFIG:-./config.py}:/srv/taiko-web/config.py:ro
+      - ${SONGS_DIR:-./songs}:/srv/taiko-web/public/songs
+    command: gunicorn -b 0.0.0.0:34801 --workers 3 app:app
+
+  multiplayer:
+    image: ${IMAGE:-taiko-web}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - ${CONFIG:-./config.py}:/srv/taiko-web/config.py:ro
+    command: python server.py
+
+  highscores:
+    build:
+      context: .
+      dockerfile: highscores/Dockerfile
+    image: ${HS_IMAGE:-taiko-highscores}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: taiko
+
+  # nginx runs from the application image because it serves public/ off
+  # disk as well as proxying, so it needs the same filesystem.
+  nginx:
+    image: ${IMAGE:-taiko-web}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - app
+      - multiplayer
+      - highscores
+    ports:
+      - "${PORT:-34800}:80"
+    volumes:
+      - ${SONGS_DIR:-./songs}:/srv/taiko-web/public/songs:ro
+    command: nginx -g "daemon off;"
+
+volumes:
+  mongo:
+  redis:

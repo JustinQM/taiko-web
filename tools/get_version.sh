@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Writes version.json. The client uses commit_short as its asset cache key:
 # every script and asset URL is emitted as ...?<commit_short>.
 #
