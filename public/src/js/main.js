@@ -90,6 +90,7 @@ var strings
 var vectors
 var settings
 var scoreStorage
+var favorites
 var account = {}
 var gpicker
 var db

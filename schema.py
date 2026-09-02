@@ -72,6 +72,21 @@ delete_account = {
     }
 }
 
+playlist_toggle = {
+    '$schema': 'http://json-schema.org/schema#',
+    'type': 'object',
+    'additionalProperties': False,
+    'required': ['song_id'],
+    'properties': {
+        # The slug names which list. Only favorites has a UI today, but
+        # the shape carries any named list without a migration.
+        'slug': {'type': 'string', 'minLength': 1, 'maxLength': 64,
+                 'pattern': '^[a-z0-9-]+$'},
+        'song_id': {'type': 'integer', 'minimum': 0},
+        'value': {'type': 'boolean'}
+    }
+}
+
 scores_save = {
     '$schema': 'http://json-schema.org/schema#',
     'type': 'object',

@@ -173,6 +173,54 @@ class SongNavigator{
 		return Math.min(Math.max(0, index), this.items.length - 1)
 	}
 	
+	/*
+	 * A folder whose contents are worked out when it is opened rather than
+	 * fixed when the wheel is built, so it reflects whatever has been
+	 * favourited since. YataiDON declares these in box.def with
+	 * #COLLECTION and resolves them the same way.
+	 */
+	collectionFolder(spec){
+		var folder = {
+			id: spec.id,
+			title: spec.title,
+			originalCategory: spec.originalCategory || spec.title,
+			collection: spec.songs,
+			songs: []
+		}
+		return {
+			title: spec.title,
+			category: spec.title,
+			originalCategory: folder.originalCategory,
+			skin: spec.skin,
+			action: "folder",
+			folder: folder,
+			canJump: true
+		}
+	}
+	
+	/*
+	 * Rebuild the folder we are standing in, for when its contents can
+	 * change while it is open.
+	 */
+	refreshFolder(){
+		var folder = this.path[this.path.length - 1]
+		if(folder){
+			this.items = this.buildFolder(folder)
+		}
+		return this.items
+	}
+	
+	favoriteSongs(){
+		if(typeof favorites === "undefined" || !favorites){
+			return []
+		}
+		// In the order they were favourited, newest first, which is the
+		// order the server keeps them in.
+		return favorites.songs
+			.map(id => this.songItems.find(song => song.id === id))
+			.filter(Boolean)
+	}
+	
 	folderId(item){
 		return item.folder ? item.folder.id : null
 	}
@@ -229,6 +277,9 @@ class SongNavigator{
 	 * A folder's listing: a back box, then its songs.
 	 */
 	buildFolder(folder){
+		if(folder.collection){
+			folder.songs = folder.collection()
+		}
 		var items = [{
 			title: strings.back,
 			category: folder.title,
@@ -257,6 +308,12 @@ class SongNavigator{
 		var items = this.buildGenreFolders()
 		
 		if(config.songs.length){
+			items.push(this.collectionFolder({
+				id: "collection:favorites",
+				title: strings.favorites.title,
+				skin: skin.favorites || skin.random,
+				songs: () => this.favoriteSongs()
+			}))
 			items.push({
 				title: strings.randomSong,
 				skin: skin.random,

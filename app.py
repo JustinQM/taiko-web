@@ -78,6 +78,7 @@ db.categories.create_index('id')
 db.makers.create_index('id')
 db.song_skins.create_index('id')
 db.seq.create_index('name', unique=True)
+db.playlists.create_index([('username', 1), ('slug', 1)], unique=True)
 
 
 class HashException(Exception):
@@ -744,6 +745,57 @@ def route_api_account_remove():
 
     session.clear()
     return jsonify({'status': 'ok'})
+
+
+# Named per-user song lists. Favourites are the list with slug
+# "favorites"; the shape is a playlist from the start so adding
+# user-created ones later is rows and screens rather than a migration.
+DEFAULT_PLAYLIST = 'favorites'
+
+
+def playlist_songs(username, slug):
+    playlist = db.playlists.find_one({'username': username, 'slug': slug})
+    return playlist['songs'] if playlist else []
+
+
+@app.route('/api/playlists/<slug>')
+@login_required
+def route_api_playlist_get(slug):
+    if not re.match('^[a-z0-9-]{1,64}$', slug):
+        abort(400)
+    return jsonify({'status': 'ok', 'slug': slug,
+                    'songs': playlist_songs(session.get('username'), slug)})
+
+
+@app.route('/api/playlists', methods=['POST'])
+@login_required
+def route_api_playlist_toggle():
+    data = request.get_json()
+    if not schema.validate(data, schema.playlist_toggle):
+        return abort(400)
+
+    username = session.get('username')
+    slug = data.get('slug', DEFAULT_PLAYLIST)
+    song_id = data['song_id']
+
+    songs = playlist_songs(username, slug)
+    # An explicit value makes the call idempotent, which matters when two
+    # tabs or a retried request would otherwise toggle twice.
+    add = data['value'] if 'value' in data else song_id not in songs
+    if add and song_id not in songs:
+        # Newest first, as YataiDON writes its favourites list.
+        songs.insert(0, song_id)
+    elif not add and song_id in songs:
+        songs.remove(song_id)
+
+    db.playlists.update_one(
+        {'username': username, 'slug': slug},
+        {'$set': {'username': username, 'slug': slug, 'songs': songs,
+                  'updated': int(time.time())}},
+        upsert=True
+    )
+    return jsonify({'status': 'ok', 'slug': slug, 'songs': songs,
+                    'value': song_id in songs})
 
 
 @app.route('/api/scores/save', methods=['POST'])

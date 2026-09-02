@@ -255,6 +255,7 @@ class Loader{
 			settings = new Settings()
 			pageEvents.setKbd()
 			scoreStorage = new ScoreStorage()
+			favorites = new Favorites()
 			db = new IDB("taiko", "store")
 			plugins = new Plugins()
 
@@ -269,6 +270,9 @@ class Loader{
 				if(!account.loggedIn){
 					scoreStorage.load()
 				}
+				// After the account has resolved, so it knows which of the
+				// two places to read from.
+				favorites.load()
 				for(var i in assets.songsDefault){
 					var song = assets.songsDefault[i]
 					if(!song.hash){

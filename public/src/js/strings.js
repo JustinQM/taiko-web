@@ -80,6 +80,22 @@ var translations = {
 		tw: "隨機",
 		ko: "랜덤"
 	},
+	favorites: {
+		title: {
+			ja: "お気に入り",
+			en: "Favorites",
+			cn: "收藏",
+			tw: "收藏",
+			ko: "즐겨찾기"
+		},
+		empty: {
+			ja: "お気に入りがありません",
+			en: "No favorites yet",
+			cn: "还没有收藏",
+			tw: "還沒有收藏",
+			ko: "즐겨찾기가 없습니다"
+		}
+	},
 	randomSong: {
 		ja: "ランダムに曲をえらぶ",
 		en: "Random Song",

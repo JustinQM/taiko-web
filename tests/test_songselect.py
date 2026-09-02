@@ -146,7 +146,10 @@ def test_genre_order_matches_the_old_category_order(wheel):
     shape = wheel.page.evaluate("""() => {
         const items = __ss.navigator.items
         return {
-            genres: items.filter(i => i.action === "folder").map(i => i.originalCategory),
+            // genre folders only; collections like favourites sit after
+            // them and are not categories
+            genres: items.filter(i => i.folder && i.folder.id.startsWith("genre:"))
+                         .map(i => i.originalCategory),
             actions: items.filter(i => i.action && i.action !== "folder").map(i => i.action),
         }
     }""")

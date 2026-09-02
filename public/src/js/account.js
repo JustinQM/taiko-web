@@ -405,6 +405,7 @@ class Account{
 			account.don = response.don
 			var loadScores = scores => {
 				scoreStorage.load(scores)
+				favorites.load()
 				this.onEnd(false, true, true)
 				pageEvents.send("login", account.username)
 			}
@@ -462,6 +463,7 @@ class Account{
 		delete account.don
 		var loadScores = () => {
 			scoreStorage.load()
+			favorites.load()
 			this.onEnd(false, true)
 			pageEvents.send("logout")
 		}
@@ -506,6 +508,8 @@ class Account{
 				delete account.displayName
 				delete account.don
 				scoreStorage.load()
+				favorites.load()
+			favorites.load()
 				pageEvents.send("logout")
 				return Promise.resolve
 			}))

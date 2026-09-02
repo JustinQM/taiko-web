@@ -28,6 +28,12 @@ class SongSelect{
 				border: ["#ffe7bd", "#c68229"],
 				outline: "#ad7723"
 			},
+			"favorites": {
+				sort: 0,
+				background: "#ff9f40",
+				border: ["#ffd6a5", "#c96f16"],
+				outline: "#a55100"
+			},
 			"random": {
 				sort: 0,
 				background: "#fa91ff",
@@ -303,7 +309,9 @@ class SongSelect{
 			ctrl: ["ctrl"],
 			shift: ["shift"],
 			mute: ["q"],
-			search: ["f"]
+			search: ["f"],
+			// YataiDON puts this on space, which is already confirm here.
+			favorite: ["s"]
 		}, this.keyPress.bind(this))
 		this.gamepad = new Gamepad({
 			confirm: ["b", "start", "ls", "rs"],
@@ -1201,6 +1209,8 @@ class SongSelect{
 				else{
 					this.moveToSong(1)
 				}
+			}else if(name === "favorite" && !repeat){
+				this.toggleFavorite()
 			}else if(name === "jump_left" && !repeat){
 				this.categoryJump(-1)
 			}else if(name === "jump_right" && !repeat){
@@ -1791,6 +1801,33 @@ class SongSelect{
 	 * Into the selected folder. The wheel is rebuilt around the new
 	 * listing, so everything that indexes into it has to be reset with it.
 	 */
+	/*
+	 * Add or remove the selected song from favourites.
+	 *
+	 * Only songs, and only outside a session: favourites are per-account
+	 * and nothing about them is shared with a peer, so toggling one while
+	 * playing together would change one player's wheel and not the other's.
+	 */
+	toggleFavorite(){
+		var song = this.songs[this.selectedSong]
+		if(!song || !song.courses || p2.session || typeof favorites === "undefined"){
+			return
+		}
+		var added = favorites.toggle(song.id)
+		this.playSound(added ? "se_don" : "se_cancel")
+		
+		// Standing inside the favourites folder while removing something
+		// from it would leave the wheel showing a song that is no longer
+		// in the listing.
+		var folder = this.navigator.path[this.navigator.path.length - 1]
+		if(folder && folder.id === "collection:favorites"){
+			this.songs = this.navigator.refreshFolder()
+			this.selectedSong = this.mod(this.songs.length, this.selectedSong)
+			this.state.move = 0
+		}
+		return added
+	}
+	
 	toFolder(fromP2){
 		if(p2.session && !fromP2){
 			// Tell the peer first and act on the echo, so both clients
