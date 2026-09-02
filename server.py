@@ -323,8 +323,12 @@ async def connection(ws, path):
                 elif action == "songsel":
                     # Session song selection
                     if "other_user" in user and "ws" in user["other_user"]:
-                        if msg_type == "songsel" or msg_type == "catjump":
-                            # Change song select position
+                        if msg_type in ("songsel", "catjump", "folder", "folderup"):
+                            # Change song select position. folder and
+                            # folderup carry the same shape and are echoed
+                            # to both sides for the same reason: the two
+                            # clients apply the move together rather than
+                            # one leading and the other following.
                             if user["other_user"]["action"] == "songsel" and type(value) is dict:
                                 value["player"] = user["player"]
                                 sent_msg = msgobj(msg_type, value)

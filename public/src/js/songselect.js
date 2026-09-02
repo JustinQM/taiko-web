@@ -1573,7 +1573,7 @@ class SongSelect{
 		if(p2.session && !fromP2){
 			if(!this.state.selLock && ms > this.state.moveMS + 800){
 				this.state.selLock = true
-				p2.send("songsel", {
+				this.sendWithPath("songsel", {
 					song: this.mod(this.songs.length, this.selectedSong + moveBy)
 				})
 			}
@@ -1634,7 +1634,7 @@ class SongSelect{
 			var ms = this.getMS()
 			if(!this.state.selLock && ms > this.state.moveMS + 800){
 				this.state.selLock = true
-				p2.send("catjump", {
+				this.sendWithPath("catjump", {
 					song: this.selectedSong,
 					move: moveBy
 				})
@@ -1658,21 +1658,44 @@ class SongSelect{
 		}
 	}
 	
-	// Entries a session lets the local player act on directly, rather than
-	// sending to the peer first. Both of these come back through
-	// toSelectDifficulty afterwards -- random picks an index and moves to
-	// it, search sets an index and re-enters -- and the move is what syncs.
-	entryActsLocallyInSession(song){
+	// Entries whose own handler knows what to do in a session, so the
+	// dispatch should let them through rather than sending a selection on
+	// their behalf.
+	//
+	// Random and Search both come back through toSelectDifficulty with a
+	// real song, and that selection is what syncs. Folder and back send a
+	// message of their own carrying the path.
+	entryHandlesSessionItself(song){
 		return song.action === "random" || song.action === "search"
+			|| song.action === "folder" || song.action === "back"
 	}
 	
-	// Folder navigation is refused during a session until the folder path
-	// travels over the wire with the selection. Refusing it means neither
-	// peer can descend, so both keep the identical listing and stay in
-	// step -- a missing feature for now rather than two clients
-	// disagreeing about what an index means.
-	folderNavigationBlocked(){
-		return !!p2.session
+	// Every message that carries a selection carries the folder it is an
+	// index into, because an index alone means nothing to a peer standing
+	// somewhere else in the tree.
+	sendWithPath(type, value){
+		value.path = this.navigator.pathIds()
+		p2.send(type, value)
+	}
+	
+	// Follow the peer into the folder its message came from, before its
+	// index is applied to anything.
+	followPath(value){
+		if(!value || !value.path || this.navigator.samePath(value.path)){
+			return true
+		}
+		if(!this.navigator.goToPath(value.path)){
+			return false
+		}
+		this.songs = this.navigator.items
+		this.selectedSong = 0
+		this.state.move = 0
+		this.state.moveMS = 0
+		this.state.locked = 0
+		this.state.moveHover = null
+		this.state.catJump = false
+		this.endPreview()
+		return true
 	}
 	
 	// Which entries are greyed out during a session: anything with an
@@ -1680,7 +1703,7 @@ class SongSelect{
 	// three sites in redraw that draw entries greyed out used to carry
 	// their own copies of this and disagreed about Search.
 	entryDisabledInSession(song){
-		return !!(p2.session && song.action && !this.entryActsLocallyInSession(song))
+		return !!(p2.session && song.action && !this.entryHandlesSessionItself(song))
 	}
 	
 	// Folders group songs; they are not songs. Category jump steps between
@@ -1692,11 +1715,11 @@ class SongSelect{
 	
 	toSelectDifficulty(fromP2){
 		var currentSong = this.songs[this.selectedSong]
-		if(p2.session && !fromP2 && !this.entryActsLocallyInSession(currentSong)){
+		if(p2.session && !fromP2 && !this.entryHandlesSessionItself(currentSong)){
 			if(this.songs[this.selectedSong].courses){
 				if(!this.state.selLock){
 					this.state.selLock = true
-					p2.send("songsel", {
+					this.sendWithPath("songsel", {
 						song: this.selectedSong,
 						selected: true
 					})
@@ -1731,9 +1754,9 @@ class SongSelect{
 				}
 				pageEvents.send("song-select-difficulty", currentSong)
 			}else if(currentSong.action === "folder"){
-				this.toFolder()
+				this.toFolder(fromP2)
 			}else if(currentSong.action === "back"){
-				this.toFolderUp()
+				this.toFolderUp(fromP2)
 			}else if(currentSong.action === "random"){
 				this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
 				this.state.locked = true
@@ -1768,23 +1791,33 @@ class SongSelect{
 	 * Into the selected folder. The wheel is rebuilt around the new
 	 * listing, so everything that indexes into it has to be reset with it.
 	 */
-	toFolder(){
-		if(this.folderNavigationBlocked()){
+	toFolder(fromP2){
+		if(p2.session && !fromP2){
+			// Tell the peer first and act on the echo, so both clients
+			// descend at the same moment rather than one leading.
+			if(!this.state.selLock){
+				this.state.selLock = true
+				this.sendWithPath("folder", {song: this.selectedSong})
+			}
 			return
 		}
 		var index = this.navigator.enter(this.selectedSong)
 		if(index === null){
 			return
 		}
-		this.playSound("se_don")
+		this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
 		this.enterListing(index)
 	}
 	
 	/*
 	 * Back out to the folder above, landing on the folder just left.
 	 */
-	toFolderUp(){
-		if(this.folderNavigationBlocked()){
+	toFolderUp(fromP2){
+		if(p2.session && !fromP2){
+			if(!this.state.selLock){
+				this.state.selLock = true
+				this.sendWithPath("folderup", {song: this.selectedSong})
+			}
 			return
 		}
 		var index = this.navigator.back(this.selectedSong)
@@ -1794,7 +1827,7 @@ class SongSelect{
 			this.toTitleScreen()
 			return
 		}
-		this.playSound("se_cancel")
+		this.playSound("se_cancel", 0, fromP2 ? fromP2.player : false)
 		this.enterListing(index)
 	}
 	
@@ -1822,7 +1855,7 @@ class SongSelect{
 		if(p2.session && !fromP2){
 			if(!this.state.selLock){
 				this.state.selLock = true
-				p2.send("songsel", {
+				this.sendWithPath("songsel", {
 					song: this.selectedSong
 				})
 			}
@@ -4220,6 +4253,26 @@ class SongSelect{
 	}
 	onsongsel(response){
 		if(response && response.value){
+			// Folder moves are applied to the listing the peer was in when
+			// it sent them, so the path is followed first and the index
+			// afterwards.
+			if(response.type === "folder"){
+				if(this.followPath(response.value)){
+					this.selectedSong = this.mod(this.songs.length, +response.value.song)
+					this.toFolder({player: response.value.player})
+				}
+				return
+			}
+			if(response.type === "folderup"){
+				if(this.followPath(response.value)){
+					this.selectedSong = this.mod(this.songs.length, +response.value.song)
+					this.toFolderUp({player: response.value.player})
+				}
+				return
+			}
+			if(!this.followPath(response.value)){
+				return
+			}
 			var selected = false
 			if(response.type === "songsel" && "selected" in response.value){
 				selected = response.value.selected
@@ -4280,7 +4333,8 @@ class SongSelect{
 			if(response.type == "users"){
 				this.onusers(response)
 			}
-			if(p2.session && (response.type == "songsel" || response.type == "catjump")){
+			if(p2.session && (response.type == "songsel" || response.type == "catjump"
+			|| response.type == "folder" || response.type == "folderup")){
 				this.onsongsel(response)
 				this.state.selLock = false
 			}

@@ -117,8 +117,8 @@ def test_search_is_usable_in_a_netplay_session(wheel):
     assert disabled["search"] is False, "Search still renders as disabled in a session"
     assert disabled["random"] is False
     assert disabled["aSong"] is False, "an ordinary song must stay selectable"
-    assert disabled["aFolder"] is True, \
-        "folders must be greyed out in a session until the path syncs"
+    assert disabled["aFolder"] is False, \
+        "folders are usable in a session now that the path travels with the selection"
     for action in ("settings", "about", "tutorial"):
         if action in disabled:
             assert disabled[action] is True, f"{action} should stay disabled in a session"

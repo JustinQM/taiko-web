@@ -119,6 +119,43 @@ class SongNavigator{
 		}
 	}
 	
+	/*
+	 * Where we are, as something that survives the wire. Folder ids rather
+	 * than indices, because an index only means anything against a listing
+	 * the other side may not have open.
+	 */
+	pathIds(){
+		return this.path.map(folder => folder.id)
+	}
+	
+	/*
+	 * Put the navigator at a path described by pathIds. Returns true if it
+	 * ended up there, false if the path named a folder that does not
+	 * exist, in which case it is left at the root.
+	 */
+	goToPath(ids){
+		while(this.stack.length){
+			this.back(0)
+		}
+		for(var i = 0; i < ids.length; i++){
+			var index = this.items.findIndex(item =>
+				this.isFolder(item) && item.folder.id === ids[i])
+			if(index === -1){
+				while(this.stack.length){
+					this.back(0)
+				}
+				return false
+			}
+			this.enter(index)
+		}
+		return true
+	}
+	
+	samePath(ids){
+		var here = this.pathIds()
+		return here.length === ids.length && here.every((id, i) => id === ids[i])
+	}
+	
 	rootItems(){
 		return this.stack.length ? this.stack[0].items : this.items
 	}
