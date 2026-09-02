@@ -260,7 +260,6 @@ class Loader{
 			scoreStorage = new ScoreStorage()
 			favorites = new SongList("favorites")
 			recentlyPlayed = new SongList("recent", 50)
-			highscores = new Highscores()
 			db = new IDB("taiko", "store")
 			plugins = new Plugins()
 

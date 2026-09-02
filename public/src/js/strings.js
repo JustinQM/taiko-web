@@ -112,29 +112,6 @@ var translations = {
 			ko: "최근 플레이"
 		}
 	},
-	highscores: {
-		title: {
-			ja: "ハイスコア",
-			en: "High Scores",
-			cn: "最高分",
-			tw: "最高分",
-			ko: "최고 점수"
-		},
-		empty: {
-			ja: "記録なし",
-			en: "No scores yet",
-			cn: "暂无记录",
-			tw: "暫無紀錄",
-			ko: "기록 없음"
-		},
-		loading: {
-			ja: "読み込み中",
-			en: "Loading",
-			cn: "加载中",
-			tw: "載入中",
-			ko: "불러오는 중"
-		}
-	},
 	randomSong: {
 		ja: "ランダムに曲をえらぶ",
 		en: "Random Song",
