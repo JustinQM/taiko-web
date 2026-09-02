@@ -1,6 +1,51 @@
 # Step 1 — move the deployment into the fork
 
-Status: **approved 2026-09-02.** Executing.
+Status: **approved 2026-09-02.** Tasks 1-15 done; task 16 stopped, see
+below. Every task was verified as described unless noted.
+
+## Where it ended up
+
+Done, in commit order: jj colocation and ignores; the Dockerfile building
+from the tree (tasks 7 and 8, pulled forward because the dev stack cannot
+exist without it); the local stack; the seed script; the cookie flags; the
+multiplayer bind; netplay Search; the analytics tag; the highscores
+service; the production stack and scripts; the asset check; the move from
+podman to Docker; generated asset placeholders; the browser test harness;
+the SettingsView fix; all three plugins as settings; and the private repo
+reduced to its asset layer.
+
+Two things the plan did not anticipate, both found and fixed:
+
+- **The fork did not boot.** assets.js requires 33 images upstream does
+  not ship and treats any of them 404ing as fatal, so a clean clone
+  stalled at 45%. Task 10's original check only looked at HTTP status
+  codes, which passed while the game was dead. Placeholders are generated
+  at image build now, and the browser tests would catch a regression.
+- **A number setting crashed the settings screen.** SettingsView.getValue
+  indexes a positional array by settings key, which only ever worked
+  because plugin settings arrive as an array. Fixed with a lookup by id
+  before task 13 could land.
+
+## Task 16 -- stopped
+
+Removing the plugin loader is larger than the plan assumed. It is 142
+references across seven files, and the plan missed the one that matters:
+importsongs.js has 25 of them, because dropping a folder of custom songs
+into the browser also imports .taikoweb.js files from it, and that flow
+re-enters itself with the number of plugins it started. Removing the
+loader means restructuring the custom song import path, which is not
+plugin infrastructure and is a feature that works.
+
+The three plugins are absorbed and the loader is inert with PLUGINS = [],
+so nothing depends on this. Options, in order of preference:
+
+1. Stop loading plugins from config only -- drop PLUGINS from app.py and
+   both config files, leave plugins.js and the import path alone. Kills
+   the failure mode that motivated this (a config-listed plugin silently
+   breaking when an upstream line moves, taking song select down) without
+   touching custom song import. Perhaps 20 lines.
+2. Full removal as planned, accepting the import path rework.
+3. Leave it. Keeping upstream's code makes future merges quieter.
 
 Goal: `taiko-web` becomes the whole application and its deployment, buildable
 and runnable by anyone who clones it. `mia-taiko-web` shrinks to assets,
