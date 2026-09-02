@@ -554,7 +554,9 @@
 				x: winW - 40,
 				y: this.player === 2 ? 484 : 293,
 				scale: 0.75,
-				cleared: this.rules.clearReached(score.gauge)
+				cleared: this.rules.clearReached(score.gauge),
+				full: gaugePercent >= 1,
+				multiplayer: this.player === 2
 			})
 
 			// Note bar
@@ -651,7 +653,9 @@
 				ctx: ctx,
 				x: winW - 57,
 				y: this.player === 2 ? 378 : 165,
-				cleared: this.rules.clearReached(score.gauge)
+				cleared: this.rules.clearReached(score.gauge),
+				full: gaugePercent >= 1,
+				multiplayer: this.player === 2
 			})
 
 			// Note bar
@@ -1408,6 +1412,234 @@
 					break
 			}
 
+			ctx.restore()
+		}
+		
+		this.drawEndingAnimation(ctx, winW, winH)
+	}
+	
+	/*
+	 * The panel and drumsticks shown once a song finishes.
+	 *
+	 * There is a seven second gap between the music fading out and the
+	 * results screen appearing -- gameEnded fires at 1600ms and
+	 * displayResults at 8600 -- and nothing was drawn in it. The sounds
+	 * were already playing into that silence.
+	 *
+	 * Positions and frame counts are YataiDON's, from its ending_anim
+	 * texture.json. It reads them at runtime; taiko-web has no such
+	 * indirection, so they are written out here and the import script
+	 * builds sheets that agree with them.
+	 */
+	drawEndingAnimation(ctx, winW, winH){
+		var game = this.controller.game
+		var started = game && game.fadeOutStarted
+		if(!started || started === -Infinity){
+			return
+		}
+		// Begins when the music has finished fading, which is also when the
+		// clear or fail sound plays.
+		var elapsed = game.elapsedTime - started - 1600
+		if(elapsed < 0 || elapsed > 7000){
+			return
+		}
+		
+		var score = this.controller.getGlobalScore()
+		var cleared = this.rules.clearReached(score.gauge)
+		var panel = "yatai_ending_fail"
+		var full = false
+		if(cleared){
+			full = score.bad === 0
+			panel = full ? "yatai_ending_full_combo" : "yatai_ending_clear"
+		}
+		
+		// The sheet is laid out for a 1280x720 stage; scale to whatever the
+		// canvas actually is, as the rest of the view does.
+		var scale = winW / 1280
+		var second = this.player === 2
+		
+		ctx.save()
+		ctx.scale(scale, scale)
+		this.drawEndingFans(ctx, elapsed, second)
+		this.drawEndingSticks(ctx, elapsed, second)
+		this.drawEndingPanel(ctx, elapsed, panel, full, second)
+		if(full){
+			this.drawEndingConfetti(ctx, elapsed, second)
+		}
+		ctx.restore()
+	}
+	
+	endingSheet(name, frame, frames, columns){
+		var img = assets.image[name]
+		if(!img || !img.complete || !img.naturalWidth){
+			return null
+		}
+		columns = columns || frames
+		var rows = Math.ceil(frames / columns)
+		var w = img.naturalWidth / columns
+		var h = img.naturalHeight / rows
+		var index = Math.min(frames - 1, Math.max(0, frame))
+		return {
+			img: img,
+			sx: (index % columns) * w,
+			sy: Math.floor(index / columns) * h,
+			w: w,
+			h: h
+		}
+	}
+	
+	drawEndingImage(ctx, sheet, x, y){
+		if(!sheet){
+			return
+		}
+		ctx.drawImage(sheet.img, sheet.sx, sheet.sy, sheet.w, sheet.h,
+			x - sheet.w / 2, y - sheet.h / 2, sheet.w, sheet.h)
+	}
+	
+	drawEndingFans(ctx, elapsed, second){
+		if(elapsed > 540){
+			return
+		}
+		var frame = Math.floor(elapsed / 90)
+		var y = second ? 373 : 197
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), 400, y)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), 1020, y)
+	}
+	
+	/*
+	 * The drumsticks. Timings are the skin's own, from
+	 * Graphics/game/animation.json: a 150ms fade in, then two frames over
+	 * 267ms, then four out-frames at 50ms each. The whole thing is over
+	 * inside 600ms -- far quicker than it looks, which is why guessing at
+	 * it did not read right.
+	 */
+	drawEndingSticks(ctx, elapsed, second){
+		var y = second ? 363 : 187
+		var name, frames, frame
+		var alpha = 1
+		if(elapsed < 150){
+			name = "in"
+			frames = 2
+			frame = 0
+			alpha = elapsed / 150
+		}else if(elapsed < 300){
+			name = "in"
+			frames = 2
+			frame = 0
+		}else if(elapsed < 417){
+			name = "in"
+			frames = 2
+			frame = 1
+		}else if(elapsed < 617){
+			name = "out"
+			frames = 4
+			frame = Math.floor((elapsed - 417) / 50)
+		}else{
+			return
+		}
+		ctx.save()
+		ctx.globalAlpha *= alpha
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_l_" + name, frame, frames), 701, y)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_r_" + name, frame, frames), 759, y)
+		ctx.restore()
+		// The impact, as they land.
+		if(elapsed >= 400 && elapsed < 560){
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), 579, second ? 433 : 257)
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_boom", 0, 1), 909, second ? 433 : 257)
+		}
+	}
+	
+	/*
+	 * The panel. A clear arrives as five pieces rather than one image,
+	 * each fading in over 100ms and staggered 50ms behind the last, so the
+	 * word assembles itself. Its highlight fades in at 450ms over 183ms
+	 * and straight back out. Those are the skin's numbers too.
+	 */
+	drawEndingPanel(ctx, elapsed, panel, full, second){
+		if(elapsed < 150){
+			return
+		}
+		var since = elapsed - 150
+		var y = second ? (full ? 373 : 393) : (full ? 197 : 217)
+		var x = full ? 589 : (panel === "yatai_ending_fail" ? 629 : 639)
+		
+		ctx.save()
+		ctx.translate(x, y)
+		
+		var pieces = panel === "yatai_ending_clear" ? 5 : 1
+		var name = pieces > 1 ? "yatai_ending_clear_separated" : panel
+		for(var i = 0; i < pieces; i++){
+			var appeared = Math.min(1, Math.max(0, (since - i * 50) / 100))
+			if(appeared <= 0){
+				continue
+			}
+			var sheet = this.endingSheet(name, i, pieces)
+			if(!sheet){
+				break
+			}
+			// The pieces tile across, so each sits where its slice was cut
+			// from rather than all of them at the centre.
+			var offset = pieces > 1 ? (i - (pieces - 1) / 2) * sheet.w : 0
+			ctx.save()
+			ctx.globalAlpha *= appeared
+			this.drawEndingImage(ctx, sheet, offset, 0)
+			ctx.restore()
+		}
+		
+		var highlight = (since - 450) / 183
+		if(highlight > 0 && highlight < 2){
+			ctx.save()
+			ctx.globalAlpha *= highlight < 1 ? highlight : 2 - highlight
+			ctx.globalCompositeOperation = "lighter"
+			var hName = pieces > 1 ? "yatai_ending_clear_separated_highlight" : panel + "_highlight"
+			for(var i = 0; i < pieces; i++){
+				var sheet = this.endingSheet(hName, i, pieces)
+				if(!sheet){
+					break
+				}
+				var offset = pieces > 1 ? (i - (pieces - 1) / 2) * sheet.w : 0
+				this.drawEndingImage(ctx, sheet, offset, 0)
+			}
+			ctx.restore()
+		}
+		if(full){
+			ctx.save()
+			ctx.globalAlpha *= 0.4 + 0.4 * Math.sin(elapsed / 200)
+			ctx.globalCompositeOperation = "lighter"
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_full_combo_overlay", 0, 1), 0, 0)
+			ctx.restore()
+		}
+		ctx.restore()
+	}
+	
+	// Not from the skin: YataiDON throws its confetti from the character,
+	// which we do not have. This is a plain fall behind the panel.
+	drawEndingConfetti(ctx, elapsed, second){
+		if(elapsed < 300){
+			return
+		}
+		var since = elapsed - 300
+		var baseY = second ? 300 : 120
+		for(var i = 0; i < 24; i++){
+			// Deterministic scatter: the same piece is in the same place
+			// every time, which matters when two players are watching the
+			// same song end.
+			var seed = (i * 2654435761) % 1000 / 1000
+			var seed2 = (i * 40503) % 997 / 997
+			var delay = seed * 600
+			var t = since - delay
+			if(t < 0){
+				continue
+			}
+			var fall = (t / 3200) % 1
+			var x = 340 + seed2 * 600
+			var y = baseY + fall * 330
+			ctx.save()
+			ctx.globalAlpha *= Math.min(1, (1 - fall) * 3)
+			ctx.translate(x + Math.sin(t / 300 + i) * 18, y)
+			ctx.rotate(t / 400 + i)
+			this.drawEndingImage(ctx, this.endingSheet("yatai_ending_confetti",
+				Math.floor(t / 110) % 5, 5), 0, 0)
 			ctx.restore()
 		}
 	}

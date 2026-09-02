@@ -43,6 +43,7 @@
 		this.crownPath = new Path2D(vectors.crown)
 		this.soulPath = new Path2D(vectors.soul)
 		this.gaugeRainbowStart = {}
+		this.soulFireStart = {}
 		
 		this.optionsPath = {
 			main: new Path2D(vectors.options),
@@ -1627,12 +1628,59 @@
 		if(config.scale){
 			ctx.scale(config.scale, config.scale)
 		}
+		
+		// Behind the glyph, so the flame reads as coming off it rather
+		// than sitting over it.
+		if(config.full){
+			this.drawSoulFire(ctx, config)
+		}
+		
 		ctx.translate(-23, -21)
 		
 		ctx.fillStyle = config.cleared ? "#fff" : "#737373"
 		ctx.fill(this.soulPath)
 		
 		ctx.restore()
+	}
+	
+	/*
+	 * The flame around the soul glyph while the gauge is full.
+	 *
+	 * Eight frames stacked into one strip, cycled at the same rate as the
+	 * rainbow gauge so the two read as one effect, and faded in over the
+	 * same 166ms so it does not appear the instant the gauge fills.
+	 */
+	drawSoulFire(ctx, config){
+		var img = assets.image["yatai_gauge_soul_fire"]
+		// Same guard as the rainbow gauge overlay. A placeholder is a 1x1
+		// transparent pixel, so drawing it costs a blit and shows nothing,
+		// which keeps the public build's behaviour identical apart from
+		// having no art.
+		if(!img || !img.complete || !img.naturalWidth){
+			return
+		}
+		var key = config.multiplayer ? "p2" : "p1"
+		var now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now()
+		if(this.soulFireStart[key] == null){
+			this.soulFireStart[key] = now
+		}
+		var elapsed = now - this.soulFireStart[key]
+		var frames = 8
+		var fh = img.naturalHeight / frames
+		var frame = Math.floor(elapsed / 75) % frames
+		
+		ctx.save()
+		ctx.globalAlpha *= Math.min(1, elapsed / 166)
+		ctx.globalCompositeOperation = "lighter"
+		var w = 64
+		var h = w * fh / img.naturalWidth
+		ctx.drawImage(img, 0, frame * fh, img.naturalWidth, fh,
+			-w / 2, -h / 2 - 4, w, h)
+		ctx.restore()
+	}
+	
+	clearSoulFire(config){
+		delete this.soulFireStart[config && config.multiplayer ? "p2" : "p1"]
 	}
 	
 	slot(ctx, x, y, size){
