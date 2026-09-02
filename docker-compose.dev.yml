@@ -1,6 +1,10 @@
-# Local test stack. Self-contained: named volumes only, no bind mounts to
-# a host data directory, and ports offset into the 349xx range so it can
-# run alongside anything else on the machine.
+# Local test stack for the public build: upstream's placeholder assets, no
+# songs. Unstyled and unplayable on purpose -- it exists to exercise the
+# server, the database and the deployment wiring.
+#
+# It is not the stack to look at. mia-taiko-web's docker-compose.local.yml
+# runs the private image with real assets and playable songs on :34900;
+# this one sits on :34910 so both can run at once.
 #
 #   docker compose -f docker-compose.dev.yml up --build
 #
@@ -61,7 +65,7 @@ services:
       - multiplayer
       - highscores
     ports:
-      - "127.0.0.1:34900:80"
+      - "127.0.0.1:${DEV_PORT:-34910}:80"
     command: nginx -g "daemon off;"
 
 volumes:
