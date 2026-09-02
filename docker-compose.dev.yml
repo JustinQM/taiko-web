@@ -37,7 +37,15 @@ services:
       - redis
     volumes:
       - ./config.dev.py:/srv/taiko-web/config.py:ro
-    command: gunicorn -b 0.0.0.0:34801 --workers 3 app:app
+      # Live-mounted so editing the client or a template does not need the
+      # image rebuilding. public/assets stays in the image, because the
+      # placeholder images are generated during the build and are not in
+      # the working tree.
+      - ./public/src:/srv/taiko-web/public/src:ro
+      - ./templates:/srv/taiko-web/templates:ro
+      - ./app.py:/srv/taiko-web/app.py:ro
+      - ./schema.py:/srv/taiko-web/schema.py:ro
+    command: gunicorn -b 0.0.0.0:34801 --workers 3 --reload app:app
 
   multiplayer:
     image: taiko-web:dev
@@ -45,6 +53,7 @@ services:
       - app
     volumes:
       - ./config.dev.py:/srv/taiko-web/config.py:ro
+      - ./server.py:/srv/taiko-web/server.py:ro
     command: python server.py
 
   highscores:
@@ -66,6 +75,10 @@ services:
       - highscores
     ports:
       - "127.0.0.1:${DEV_PORT:-34910}:80"
+    volumes:
+      # nginx serves /src straight off disk, so this is what actually makes
+      # a client edit visible without a rebuild.
+      - ./public/src:/srv/taiko-web/public/src:ro
     command: nginx -g "daemon off;"
 
 volumes:
