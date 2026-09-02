@@ -15,10 +15,14 @@ import pytest
 
 @pytest.fixture
 def wheel(game):
+    """Inside a genre folder, which is where scrolling actually happens.
+
+    The root is a dozen folders and menu entries; a few hundred songs is
+    the case the motion is for, and it leaves room to move in both
+    directions without wrapping and making deltas unreadable.
+    """
     wheel = game.open_song_select()
-    # The wheel opens on a menu entry at the very end of the list, so a
-    # forward move wraps to zero and deltas stop being readable. Start
-    # somewhere with room in both directions.
+    wheel.enter_folder()
     wheel.select_index(100)
     return wheel
 

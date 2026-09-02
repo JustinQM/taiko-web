@@ -18,49 +18,39 @@ def wheel(game):
 def test_song_select_opens_without_errors(wheel):
     state = wheel.wheel()
     assert state["screen"] == "song"
-    assert state["total"] > 3000, f"only {state['total']} entries in the wheel"
+    assert state["total"] > 0
     assert wheel.errors == [], f"song select raised: {wheel.errors}"
 
 
-def test_every_song_is_in_the_wheel(wheel):
-    """Flat: one entry per song, plus the menu entries after them."""
-    counts = wheel.page.evaluate("""() => ({
-        songs: assets.songs.length,
-        entries: __ss.songs.length,
-        withCourses: __ss.songs.filter(s => s.courses).length,
-        actions: __ss.songs.filter(s => s.action).map(s => s.action),
-    })""")
-    assert counts["withCourses"] == counts["songs"]
-    assert counts["entries"] == counts["songs"] + len(counts["actions"])
-
-
-def test_menu_entries_come_last_and_in_order(wheel):
-    actions = wheel.page.evaluate(
-        "() => __ss.songs.map((s, i) => s.action ? [i, s.action] : null).filter(Boolean)"
-    )
-    indexes = [i for i, _ in actions]
-    assert indexes == sorted(indexes)
-    assert indexes[0] == wheel.wheel()["total"] - len(actions), \
-        "menu entries are not contiguous at the end of the wheel"
-    assert [a for _, a in actions][:2] == ["random", "search"]
-
-
-def test_songs_are_grouped_by_category(wheel):
-    """Each category occupies one contiguous run.
-
-    This is what the wheel's colour bands rely on, and it is the invariant
-    the folder tree replaces.
-    """
-    runs = wheel.page.evaluate("""() => {
-        const seen = [], out = []
-        for (const s of __ss.songs) {
-            if (!s.courses) break
-            if (out.length === 0 || out[out.length - 1] !== s.originalCategory)
-                out.push(s.originalCategory)
-        }
-        return out
+def test_every_song_is_reachable_through_a_genre_folder(wheel):
+    """No song is stranded: the genre folders partition all of them."""
+    counts = wheel.page.evaluate("""() => {
+        const folders = __ss.navigator.items.filter(i => i.action === "folder")
+        const inFolders = folders.reduce((n, f) => n + f.folder.songs.length, 0)
+        const ids = new Set()
+        for (const f of folders) for (const s of f.folder.songs) ids.add(s.id)
+        return {songs: assets.songs.length, inFolders: inFolders, distinct: ids.size}
     }""")
-    assert len(runs) == len(set(runs)), f"a category appears in two runs: {runs}"
+    assert counts["inFolders"] == counts["songs"]
+    assert counts["distinct"] == counts["songs"], "a song is in two folders"
+
+
+def test_root_is_folders_then_menu_entries(wheel):
+    """YataiDON's ordering: genres first, menu entries last."""
+    root = wheel.page.evaluate(
+        "() => __ss.navigator.items.map(i => i.action || 'song')")
+    folders = [i for i, a in enumerate(root) if a == "folder"]
+    actions = [i for i, a in enumerate(root) if a not in ("folder", "song")]
+    assert folders == list(range(len(folders))), \
+        f"the genre folders are not first: {root}"
+    assert min(actions) > max(folders), "a menu entry is above a genre"
+    assert "song" not in root, "a bare song is loose at the root"
+
+
+def test_the_root_has_no_back_box(wheel):
+    """There is nothing above the root to go back to."""
+    assert wheel.page.evaluate(
+        "() => __ss.navigator.items.some(i => i.action === 'back')") is False
 
 
 def test_moving_changes_the_selection(wheel):
@@ -89,8 +79,8 @@ def test_category_jump_lands_on_a_different_category(wheel):
 
 
 def test_selecting_a_song_opens_difficulty_select(wheel):
-    """The first entry is a song, so it has courses and can be entered."""
-    wheel.select_index(0)
+    """Songs live inside genre folders now, so descend to reach one."""
+    wheel.enter_folder()
     wheel.page.evaluate("() => __ss.toSelectDifficulty()")
     wheel.page.wait_for_function("() => __ss.state.screen === 'difficulty'", timeout=5000)
     assert wheel.wheel()["screen"] == "difficulty"
@@ -117,13 +107,18 @@ def test_search_is_usable_in_a_netplay_session(wheel):
                 const song = __ss.songs.find(s => s.action === action)
                 if (song) by[action] = __ss.entryDisabledInSession(song)
             }
-            by.aSong = __ss.entryDisabledInSession(__ss.songs[0])
+            // a real song, which lives inside a folder now
+            const folder = __ss.navigator.items.find(i => i.action === "folder")
+            by.aSong = __ss.entryDisabledInSession(folder.folder.songs[0])
+            by.aFolder = __ss.entryDisabledInSession(folder)
             return by
         } finally { p2.session = real }
     }""")
     assert disabled["search"] is False, "Search still renders as disabled in a session"
     assert disabled["random"] is False
     assert disabled["aSong"] is False, "an ordinary song must stay selectable"
+    assert disabled["aFolder"] is True, \
+        "folders must be greyed out in a session until the path syncs"
     for action in ("settings", "about", "tutorial"):
         if action in disabled:
             assert disabled[action] is True, f"{action} should stay disabled in a session"
@@ -142,30 +137,23 @@ def test_navigator_owns_the_listing(wheel):
         "the root listing should be at the root of the tree"
 
 
-def test_root_listing_is_unchanged_by_the_refactor(wheel):
-    """A fingerprint of the old flat list, so the no-op stays a no-op.
+def test_genre_order_matches_the_old_category_order(wheel):
+    """Folders appear in the order the categories used to run in.
 
-    Rebuilding through the navigator has to produce the same entries in
-    the same order as building them inline did. Anything that changes this
-    should be a stage that means to.
+    The wheel has gone from runs within one list to folders; the order
+    they come in should not have changed with it.
     """
     shape = wheel.page.evaluate("""() => {
         const items = __ss.navigator.items
         return {
-            total: items.length,
-            songs: items.filter(s => s.courses).length,
-            actions: items.filter(s => s.action).map(s => s.action),
-            firstCategory: items[0].originalCategory,
-            lastCategory: items.filter(s => s.courses).slice(-1)[0].originalCategory,
-            sortedIds: items.filter(s => s.courses).slice(0, 5).map(s => s.id),
+            genres: items.filter(i => i.action === "folder").map(i => i.originalCategory),
+            actions: items.filter(i => i.action && i.action !== "folder").map(i => i.action),
         }
     }""")
-    assert shape["songs"] == 3367
-    assert shape["total"] == shape["songs"] + len(shape["actions"])
+    assert shape["genres"][0] == "Pop"
+    assert shape["genres"][-1] == "創作譜面"
     assert shape["actions"] == ["random", "search", "tutorial", "about",
                                 "settings", "customSongs"]
-    assert shape["firstCategory"] == "Pop"
-    assert shape["lastCategory"] == "創作譜面"
 
 # What toSelectDifficulty actually does with each kind of entry during a
 # session, rather than what the predicate returns. Testing only the
@@ -183,6 +171,7 @@ DISPATCH = """
         const index = action === null
             ? __ss.songs.findIndex(s => s.courses)
             : __ss.songs.findIndex(s => s.action === action)
+        // songs live inside folders; the caller descends first for those
         if (index < 0) return null
         __ss.selectedSong = index
         __ss.state.move = 0
@@ -212,8 +201,9 @@ def dispatch(wheel):
     return run
 
 
-def test_a_song_is_sent_to_the_peer_not_opened_locally(dispatch):
+def test_a_song_is_sent_to_the_peer_not_opened_locally(wheel, dispatch):
     """Both clients open difficulty select together, on the peer's echo."""
+    wheel.enter_folder()
     result = dispatch(None)
     assert result["sentSongsel"] is True, "the peer was never told"
     assert result["openedDifficulty"] is False, "opened locally, ahead of the peer"

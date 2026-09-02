@@ -1532,7 +1532,10 @@ class SongSelect{
 			if(assets.customSongs){
 				assets.customSelected = this.selectedSong
 				localStorage["customSelected"] = this.selectedSong
-			}else if(!p2.session){
+			}else if(!p2.session && !this.navigator.path.length){
+				// Only meaningful at the root: inside a folder this is an
+				// index into that folder's listing, which the next launch
+				// would apply to a different one.
 				try{
 					localStorage["selectedSong"] = this.selectedSong
 				}catch(e){}
@@ -1629,6 +1632,12 @@ class SongSelect{
 	}
 	
 	categoryJump(moveBy, fromP2){
+		// Inside a folder every song shares the folder's category, so
+		// there are no runs to step between. Jump a page instead, which is
+		// what the player wanted from it.
+		if(!fromP2 && this.navigator.path.length){
+			return this.moveToSong(moveBy * this.songSelecting.skipBy)
+		}
 		if(p2.session && !fromP2){
 			var ms = this.getMS()
 			if(!this.state.selLock && ms > this.state.moveMS + 800){
@@ -1665,12 +1674,28 @@ class SongSelect{
 		return song.action === "random" || song.action === "search"
 	}
 	
+	// Folder navigation is refused during a session until the folder path
+	// travels over the wire with the selection. Refusing it means neither
+	// peer can descend, so both keep the identical listing and stay in
+	// step -- a missing feature for now rather than two clients
+	// disagreeing about what an index means.
+	folderNavigationBlocked(){
+		return !!p2.session
+	}
+	
 	// Which entries are greyed out during a session: anything with an
 	// action that is not one of the two above. The guard below and the
 	// three sites in redraw that draw entries greyed out used to carry
 	// their own copies of this and disagreed about Search.
 	entryDisabledInSession(song){
 		return !!(p2.session && song.action && !this.entryActsLocallyInSession(song))
+	}
+	
+	// Folders group songs; they are not songs. Category jump steps between
+	// runs of one category, which inside a folder is the whole listing, so
+	// at the root it steps between folders instead.
+	entryIsFolder(song){
+		return !!song && song.action === "folder"
 	}
 	
 	toSelectDifficulty(fromP2){
@@ -1713,19 +1738,21 @@ class SongSelect{
 					this.playSound("v_diffsel", 0.3)
 				}
 				pageEvents.send("song-select-difficulty", currentSong)
+			}else if(currentSong.action === "folder"){
+				this.toFolder()
 			}else if(currentSong.action === "back"){
-				this.clean()
-				this.toTitleScreen()
+				this.toFolderUp()
 			}else if(currentSong.action === "random"){
 				this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
 				this.state.locked = true
-				do{
-					var i = Math.floor(Math.random() * this.songs.length)
-				}while(!this.songs[i].courses)
-				var moveBy = i - this.selectedSong
-				setTimeout(() => {
-					this.moveToSong(moveBy, fromP2)
-				}, 200)
+				var target = this.navigator.randomSong()
+				if(target){
+					setTimeout(() => {
+						this.enterListing(this.navigator.jumpTo(target.rootIndex, target.index))
+					}, 200)
+				}else{
+					this.state.locked = 0
+				}
 				pageEvents.send("song-select-random")
 			}else if(currentSong.action === "search"){
 				this.displaySearch(true)
@@ -1745,6 +1772,60 @@ class SongSelect{
 		}
 		this.pointer(false)
 	}
+	/*
+	 * Into the selected folder. The wheel is rebuilt around the new
+	 * listing, so everything that indexes into it has to be reset with it.
+	 */
+	toFolder(){
+		if(this.folderNavigationBlocked()){
+			return
+		}
+		var index = this.navigator.enter(this.selectedSong)
+		if(index === null){
+			return
+		}
+		this.playSound("se_don")
+		this.enterListing(index)
+	}
+	
+	/*
+	 * Back out to the folder above, landing on the folder just left.
+	 */
+	toFolderUp(){
+		if(this.folderNavigationBlocked()){
+			return
+		}
+		var index = this.navigator.back(this.selectedSong)
+		if(index === null){
+			// The root has no back box, so there is nothing above it.
+			this.clean()
+			this.toTitleScreen()
+			return
+		}
+		this.playSound("se_cancel")
+		this.enterListing(index)
+	}
+	
+	/*
+	 * Swap the wheel over to the navigator's current listing. The move
+	 * animation, the hover state and the preview all refer to the old
+	 * listing by index, so none of them survive the change.
+	 */
+	enterListing(index){
+		this.endPreview()
+		this.songs = this.navigator.items
+		this.selectedSong = this.mod(this.songs.length, index)
+		this.state.move = 0
+		this.state.moveMS = 0
+		this.state.locked = 0
+		this.state.moveHover = null
+		this.state.catJump = false
+		this.state.skip = false
+		this.lastMoveAt = 0
+		this.drawBackground(this.songs[this.selectedSong].originalCategory)
+		pageEvents.send("song-select-move", this.songs[this.selectedSong])
+	}
+	
 	toSongSelect(fromP2){
 		if(p2.session && !fromP2){
 			if(!this.state.selLock){
@@ -1778,7 +1859,7 @@ class SongSelect{
 			if(assets.customSongs){
 				assets.customSelected = this.selectedSong
 				localStorage["customSelected"] = this.selectedSong
-			}else{
+			}else if(!this.navigator.path.length){
 				localStorage["selectedSong"] = this.selectedSong
 			}
 			localStorage["selectedDiff"] = difficulty + this.diffOptions.length

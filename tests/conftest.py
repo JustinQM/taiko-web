@@ -169,6 +169,36 @@ class Game:
         self.page.evaluate("i => { __ss.selectedSong = i; __ss.state.move = 0 }", index)
         return self
 
+    def enter_folder(self, index=0):
+        """Descend into a folder, leaving the cursor on its first song."""
+        self.select_index(index)
+        self.page.evaluate("() => __ss.toFolder()")
+        self.page.wait_for_function("() => __ss.navigator.path.length > 0", timeout=5000)
+        return self
+
+    def leave_folder(self):
+        self.page.evaluate("() => __ss.toFolderUp()")
+        self.page.wait_for_function("() => __ss.navigator.path.length === 0", timeout=5000)
+        return self
+
+    def path(self):
+        return self.page.evaluate("() => __ss.navigator.path.map(f => f.id)")
+
+    def enter_folder(self, index=0):
+        """Descend into a folder, leaving the cursor on its first song."""
+        self.select_index(index)
+        self.page.evaluate("() => __ss.toFolder()")
+        self.page.wait_for_function("() => __ss.navigator.path.length > 0", timeout=5000)
+        return self
+
+    def leave_folder(self):
+        self.page.evaluate("() => __ss.toFolderUp()")
+        self.page.wait_for_function("() => __ss.navigator.path.length === 0", timeout=5000)
+        return self
+
+    def path(self):
+        return self.page.evaluate("() => __ss.navigator.path.map(f => f.id)")
+
 
 @pytest.fixture
 def game(page):
