@@ -100,3 +100,84 @@ def test_song_select_speed_persists_and_is_applied(game):
     )
     assert applied == 100, f"expected 400/4, got {applied}"
     assert game.errors == []
+
+
+SPARTAN_ROWS = ["Spartan Mode: GOOD", "Spartan Mode: OK", "Spartan Mode: BAD"]
+
+
+def test_spartan_rows_render_their_options(game):
+    """The plugin's own settings UI was broken exactly here.
+
+    getValue labels a select from strings.settings[name][value]. For a
+    plugin setting `name` is the array index it arrived at, so the lookup
+    was undefined and the row threw. As built-in settings the labels
+    resolve, so this walks every option of every row.
+    """
+    game.open_settings()
+    expected = {"Continue", "Results", "Retry", "Back to Select Song"}
+    for name in SPARTAN_ROWS:
+        seen = {game.row(name)["value"].strip()}
+        for _ in range(3):
+            game.click(name)
+            seen.add(game.row(name)["value"].strip())
+        assert seen == expected, f"{name} cycled through {seen}"
+    assert game.errors == []
+
+
+def test_spartan_defaults_are_inert(game):
+    """The plugin shipped with start: false, so nothing should happen."""
+    game.open_settings()
+    for key in ["spartanGood", "spartanOk", "spartanBad"]:
+        assert game.setting(key) == "continue", f"{key} defaults to something else"
+
+
+def test_spartan_bad_ends_the_song_and_counts_the_rest(game):
+    """Drive checkSpartanMode directly; playing a song needs real audio.
+
+    Three unplayed notes remain, so ending here has to add three bads and
+    trip the fade-out, or the results screen disagrees with the note count.
+    """
+    game.open_settings()
+    result = game.page.evaluate("""() => {
+        settings.setItem('spartanBad', 'results')
+        const fake = {
+            multiplayer: 0,
+            controller: {autoPlayEnabled: false},
+            globalScore: {bad: 0},
+            fadeOutStarted: null,
+            songData: {circles: [
+                {type: 'don', isPlayed: true},
+                {type: 'don', isPlayed: false},
+                {type: 'ka',  isPlayed: false},
+                {type: 'daiKa', isPlayed: false},
+                {type: 'balloon', isPlayed: false},
+                {type: 'don', isPlayed: false, branch: {active: false}}
+            ]}
+        }
+        Game.prototype.checkSpartanMode.call(fake, -1)
+        return {bad: fake.globalScore.bad, fadeOut: fake.fadeOutStarted}
+    }""")
+    assert result["bad"] == 3, f"counted {result['bad']} remaining notes, expected 3"
+    assert result["fadeOut"] == float("-inf"), "song was not ended"
+
+
+def test_spartan_is_inert_in_multiplayer_and_autoplay(game):
+    game.open_settings()
+    untouched = game.page.evaluate("""() => {
+        settings.setItem('spartanBad', 'results')
+        const make = over => Object.assign({
+            multiplayer: 0,
+            controller: {autoPlayEnabled: false},
+            globalScore: {bad: 0},
+            fadeOutStarted: null,
+            songData: {circles: [{type: 'don', isPlayed: false}]}
+        }, over)
+        const results = []
+        for(const fake of [make({multiplayer: 1}),
+                           make({controller: {autoPlayEnabled: true}})]){
+            Game.prototype.checkSpartanMode.call(fake, -1)
+            results.push(fake.globalScore.bad === 0 && fake.fadeOutStarted === null)
+        }
+        return results
+    }""")
+    assert untouched == [True, True], "spartan mode fired in multiplayer or autoplay"

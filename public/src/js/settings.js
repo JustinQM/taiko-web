@@ -64,6 +64,21 @@ class Settings{
 				fixedPoint: 2,
 				format: "%sx"
 			},
+			spartanGood: {
+				type: "select",
+				options: ["continue", "results", "retry", "back_to_select_song"],
+				default: "continue"
+			},
+			spartanOk: {
+				type: "select",
+				options: ["continue", "results", "retry", "back_to_select_song"],
+				default: "continue"
+			},
+			spartanBad: {
+				type: "select",
+				options: ["continue", "results", "retry", "back_to_select_song"],
+				default: "continue"
+			},
 			easierBigNotes: {
 				type: "toggle",
 				default: false

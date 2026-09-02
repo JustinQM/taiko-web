@@ -1083,6 +1083,117 @@ var translations = {
 				ko: "곡 선택 스크롤 속도"
 			}
 		},
+		spartanGood: {
+			name: {
+				ja: "スパルタモード: 良",
+				en: "Spartan Mode: GOOD",
+				cn: "斯巴达模式: 良",
+				tw: "斯巴達模式: 良",
+				ko: "스파르타 모드: 얼쑤"
+			},
+			continue: {
+				ja: "演奏をつづける",
+				en: "Continue",
+				cn: "继续演奏",
+				tw: "繼續演奏",
+				ko: "연주 계속하기"
+			},
+			results: {
+				ja: "成績発表",
+				en: "Results",
+				cn: "发表成绩",
+				tw: "發表成績",
+				ko: "성적 발표"
+			},
+			retry: {
+				ja: "はじめからやりなおす",
+				en: "Retry",
+				cn: "从头开始",
+				tw: "從頭開始",
+				ko: "처음부터 다시"
+			},
+			back_to_select_song: {
+				ja: "「曲をえらぶ」にもどる",
+				en: "Back to Select Song",
+				cn: "返回「选择乐曲」",
+				tw: "返回「選擇樂曲」",
+				ko: "「곡 선택」으로"
+			}
+		},
+		spartanOk: {
+			name: {
+				ja: "スパルタモード: 可",
+				en: "Spartan Mode: OK",
+				cn: "斯巴达模式: 可",
+				tw: "斯巴達模式: 可",
+				ko: "스파르타 모드: 좋다"
+			},
+			continue: {
+				ja: "演奏をつづける",
+				en: "Continue",
+				cn: "继续演奏",
+				tw: "繼續演奏",
+				ko: "연주 계속하기"
+			},
+			results: {
+				ja: "成績発表",
+				en: "Results",
+				cn: "发表成绩",
+				tw: "發表成績",
+				ko: "성적 발표"
+			},
+			retry: {
+				ja: "はじめからやりなおす",
+				en: "Retry",
+				cn: "从头开始",
+				tw: "從頭開始",
+				ko: "처음부터 다시"
+			},
+			back_to_select_song: {
+				ja: "「曲をえらぶ」にもどる",
+				en: "Back to Select Song",
+				cn: "返回「选择乐曲」",
+				tw: "返回「選擇樂曲」",
+				ko: "「곡 선택」으로"
+			}
+		},
+		spartanBad: {
+			name: {
+				ja: "スパルタモード: 不可",
+				en: "Spartan Mode: BAD",
+				cn: "斯巴达模式: 不可",
+				tw: "斯巴達模式: 不可",
+				ko: "스파르타 모드: 에구"
+			},
+			continue: {
+				ja: "演奏をつづける",
+				en: "Continue",
+				cn: "继续演奏",
+				tw: "繼續演奏",
+				ko: "연주 계속하기"
+			},
+			results: {
+				ja: "成績発表",
+				en: "Results",
+				cn: "发表成绩",
+				tw: "發表成績",
+				ko: "성적 발표"
+			},
+			retry: {
+				ja: "はじめからやりなおす",
+				en: "Retry",
+				cn: "从头开始",
+				tw: "從頭開始",
+				ko: "처음부터 다시"
+			},
+			back_to_select_song: {
+				ja: "「曲をえらぶ」にもどる",
+				en: "Back to Select Song",
+				cn: "返回「选择乐曲」",
+				tw: "返回「選擇樂曲」",
+				ko: "「곡 선택」으로"
+			}
+		},
 		easierBigNotes: {
 			name: {
 				ja: "簡単な大きな音符",

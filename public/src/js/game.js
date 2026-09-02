@@ -237,10 +237,55 @@ class Game{
 			}
 		}
 	}
+	// Spartan mode: end, restart or leave the song on a given judgement,
+	// configured separately for good, ok and bad. Used for full-combo and
+	// donderful-combo practice.
+	//
+	// Absorbed from the spartan-mode plugin. All three settings default to
+	// "continue", so this is inert unless configured -- the plugin was
+	// listed with start: false, so that is the behaviour being preserved.
+	checkSpartanMode(score){
+		if(this.multiplayer || this.controller.autoPlayEnabled){
+			return
+		}
+		var setting = {
+			450: "spartanGood",
+			230: "spartanOk",
+			0: "spartanBad",
+			"-1": "spartanBad"
+		}[score]
+		if(!setting){
+			return
+		}
+		switch(settings.getItem(setting)){
+			case "results":
+				// The song stops here, so everything still unplayed has to
+				// be counted as a bad or the results screen disagrees with
+				// the note count.
+				var remainingNotes = this.songData.circles.filter(circle => {
+					var type = circle.type
+					return (type === "don" || type === "ka" || type === "daiDon" || type === "daiKa") && (!circle.branch || circle.branch.active) && !circle.isPlayed
+				}).length
+				this.globalScore.bad += remainingNotes
+				this.fadeOutStarted = -Infinity
+				break
+			case "retry":
+				// Not while stepping through measures in the debug view,
+				// which would restart out from under the person using it.
+				if(!debugObj.debug || !debugObj.debug.measureNum){
+					setTimeout(() => this.controller.restartSong())
+				}
+				break
+			case "back_to_select_song":
+				setTimeout(() => this.controller.songSelection())
+				break
+		}
+	}
 	skipNote(circle){
 		if(circle.section){
 			this.resetSection()
 		}
+		this.checkSpartanMode(-1)
 		circle.played(-1, circle.type === "daiDon" || circle.type === "daiKa")
 		if(circle.type !== "adlib"){
 			this.sectionNotes.push(0)
@@ -390,6 +435,7 @@ class Game{
 				if(circleStatus === 230 || circleStatus === 450){
 					score = circleStatus
 				}
+				this.checkSpartanMode(score)
 				circle.played(score, score === 0 ? typeDai : (keyDai || typeGreen))
 				if(typeAdlib){
 					this.countAdlib(circle)
@@ -403,6 +449,7 @@ class Game{
 				if(Math.abs(relative) >= (keyTimeRelative <= 25 ? this.rules.bad : this.rules.good)){
 					return true
 				}
+				this.checkSpartanMode(-1)
 				circle.played(-1, typeDai)
 				this.controller.displayScore(score, true, false)
 			}
