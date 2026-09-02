@@ -119,7 +119,6 @@ class LoadSong{
 				}
 			}
 		}
-		this.loadSongBg(id)
 
 		if(songObj.sound && songObj.sound.buffer){
 			songObj.sound.gain = snd.musicGain
@@ -194,40 +193,6 @@ class LoadSong{
 			}, 500)
 		}
 		this.error = true
-	}
-	loadSongBg(){
-		var filenames = []
-		if(this.selectedSong.songBg !== null){
-			filenames.push("bg_song_" + this.selectedSong.songBg)
-		}
-		if(this.selectedSong.donBg !== null){
-			filenames.push("bg_don_" + this.selectedSong.donBg)
-			if(this.multiplayer){
-				filenames.push("bg_don2_" + this.selectedSong.donBg)
-			}
-		}
-		if(this.selectedSong.songStage !== null){
-			filenames.push("bg_stage_" + this.selectedSong.songStage)
-		}
-		for(var i = 0; i < filenames.length; i++){
-			var filename = filenames[i]
-			var stage = filename.startsWith("bg_stage_")
-			for(var letter = 0; letter < (stage ? 1 : 2); letter++){
-				let filenameAb = filenames[i] + (stage ? "" : (letter === 0 ? "a" : "b"))
-				if(!(filenameAb in assets.image)){
-					let img = document.createElement("img")
-					let force = filenameAb.startsWith("bg_song_") && this.touchEnabled
-					if(this.imgScale !== 1 || force){
-						img.crossOrigin = "Anonymous"
-					}
-					var url = gameConfig.assets_baseurl + "img/" + filenameAb + ".png"
-					this.addPromise(pageEvents.load(img).then(() => {
-						return this.scaleImg(img, filenameAb, "", force)
-					}), url)
-					img.src = url
-				}
-			}
-		}
 	}
 	scaleImg(img, filename, prefix, force){
 		return new Promise((resolve, reject) => {

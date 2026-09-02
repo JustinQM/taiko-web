@@ -39,8 +39,7 @@
 		}
 
 		this.gameDiv = document.getElementById("game")
-		this.songBg = document.getElementById("songbg")
-		this.songStage = document.getElementById("song-stage")
+
 
 		this.rules = this.controller.game.rules
 		this.portraitClass = false
@@ -180,9 +179,8 @@
 	}
 	run(){
 		if(this.multiplayer !== 2){
-			this.setBackground()
+			this.background = new GameBackground(this)
 		}
-		this.setDonBg()
 
 		this.startTime = this.controller.game.getAccurateTime()
 		this.lastMousemove = this.startTime
@@ -280,7 +278,6 @@
 				this.nameplateCache.resize(274, 67, ratio + 0.2)
 			}
 			this.fillComboCache()
-			this.setDonBgHeight()
 			if(this.controller.lyrics){
 				this.controller.lyrics.setScale(ratio / this.pixelRatio)
 			}
@@ -307,17 +304,20 @@
 		if(this.player === 2){
 			frameTop += 165
 		}
+		if(this.background){
+			var gaugeScore = this.controller.getGlobalScore()
+			this.background.update(ms, this.rules.clearReached(gaugeScore.gauge))
+			this.background.draw(ctx, frameLeft, frameTop)
+		}
 		if(touchMultiplayer){
 			if(!this.touchp2Class){
 				this.touchp2Class = true
 				this.gameDiv.classList.add("touchp2")
-				this.setDonBgHeight()
 			}
 			frameTop -= 90
 		}else if(this.touchp2Class){
 			this.touchp2Class = false
 			this.gameDiv.classList.remove("touchp2")
-			this.setDonBgHeight()
 		}
 
 		if(this.controller.lyrics){
@@ -412,7 +412,6 @@
 			if(!this.portraitClass){
 				this.portraitClass = true
 				this.gameDiv.classList.add("portrait")
-				this.setDonBgHeight()
 			}
 
 			this.slotPos = {
@@ -593,7 +592,6 @@
 			if(this.portraitClass){
 				this.portraitClass = false
 				this.gameDiv.classList.remove("portrait")
-				this.setDonBgHeight()
 			}
 
 			this.slotPos = {
@@ -1747,100 +1745,6 @@
 		})
 		return output
 	}
-	setBackground(){
-		var selectedSong = this.controller.selectedSong
-		var songSkinName = selectedSong.songSkin.name
-		var supportsBlend = "mixBlendMode" in this.songBg.style
-		var songLayers = [document.getElementById("layer1"), document.getElementById("layer2")]
-		var prefix = ""
-
-		if(!selectedSong.songSkin.song){
-			var id = selectedSong.songBg
-			this.songBg.classList.add("songbg-" + id)
-			this.setLayers(songLayers, "bg_song_" + id + (supportsBlend ? "" : "a"), supportsBlend)
-		}else if(selectedSong.songSkin.song !== "none"){
-			var prefix = selectedSong.songSkin.prefix || ""
-			var notStatic = selectedSong.songSkin.song !== "static"
-			if(notStatic){
-				this.songBg.classList.add("songbg-" + selectedSong.songSkin.song)
-			}
-			this.setLayers(songLayers, prefix + "bg_song_" + songSkinName + (notStatic ? "_" : ""), notStatic)
-		}
-
-		if(!selectedSong.songSkin.stage){
-			this.songStage.classList.add("song-stage-" + selectedSong.songStage)
-			this.setBgImage(this.songStage, assets.image["bg_stage_" + selectedSong.songStage].src)
-		}else if(selectedSong.songSkin.stage !== "none"){
-			var prefix = selectedSong.songSkin.prefix || ""
-			this.setBgImage(this.songStage, assets.image[prefix + "bg_stage_" + songSkinName].src)
-		}
-	}
-	setDonBg(){
-		var selectedSong = this.controller.selectedSong
-		var songSkinName = selectedSong.songSkin.name
-		var donLayers = []
-		var filename = !selectedSong.songSkin.don && this.player === 2 ? "bg_don2_" : "bg_don_"
-		var prefix = ""
-
-		this.donBg = document.createElement("div")
-		this.donBg.classList.add("donbg")
-		if(this.player === 2){
-			this.donBg.classList.add("donbg-bottom")
-		}
-		for(var layer = 1; layer <= 3; layer++){
-			var donLayer = document.createElement("div")
-			donLayer.classList.add("donlayer" + layer)
-			this.donBg.appendChild(donLayer)
-			if(layer !== 3){
-				donLayers.push(donLayer)
-			}
-		}
-		this.songBg.parentNode.insertBefore(this.donBg, this.songBg)
-		var asset1, asset2
-		if(!selectedSong.songSkin.don){
-			this.donBg.classList.add("donbg-" + selectedSong.donBg)
-			this.setLayers(donLayers, filename + selectedSong.donBg, true)
-			asset1 = filename + selectedSong.donBg + "a"
-			asset2 = filename + selectedSong.donBg + "b"
-		}else if(selectedSong.songSkin.don !== "none"){
-			var prefix = selectedSong.songSkin.prefix || ""
-			var notStatic = selectedSong.songSkin.don !== "static"
-			if(notStatic){
-				this.donBg.classList.add("donbg-" + selectedSong.songSkin.don)
-				asset1 = filename + songSkinName + "_a"
-				asset2 = filename + songSkinName + "_b"
-			}else{
-				asset1 = filename + songSkinName
-				asset2 = filename + songSkinName
-			}
-			this.setLayers(donLayers, prefix + filename + songSkinName + (notStatic ? "_" : ""), notStatic)
-		}else{
-			return
-		}
-		var w1 = assets.image[prefix + asset1].width
-		var w2 = assets.image[prefix + asset2].width
-		this.donBg.style.setProperty("--sw", w1 > w2 ? w1 : w2)
-		this.donBg.style.setProperty("--sw1", w1)
-		this.donBg.style.setProperty("--sw2", w2)
-		this.donBg.style.setProperty("--sh1", assets.image[prefix + asset1].height)
-		this.donBg.style.setProperty("--sh2", assets.image[prefix + asset2].height)
-	}
-	setDonBgHeight(){
-		this.donBg.style.setProperty("--h", getComputedStyle(this.donBg).height)
-		var gameDiv = this.gameDiv
-		gameDiv.classList.add("fix-animations")
-		setTimeout(()=>{
-			gameDiv.classList.remove("fix-animations")
-		}, 50)
-	}
-	setLayers(elements, file, ab){
-		if(ab){
-			this.setBgImage(elements[0], assets.image[file + "a"].src)
-			this.setBgImage(elements[1], assets.image[file + "b"].src)
-		}else{
-			this.setBgImage(elements[0], assets.image[file].src)
-		}
-	}
 	setBgImage(element, url){
 		element.style.backgroundImage = "url('" + url + "')"
 	}
@@ -2822,14 +2726,10 @@
 			this.setDarkBg(true)
 		}
 	}
+	// The background dims while the gauge is failing. It used to be a
+	// class on a DOM layer; the canvas background reads the flag.
 	setDarkBg(miss){
-		if(!miss && this.darkDonBg){
-			this.darkDonBg = false
-			this.donBg.classList.remove("donbg-dark")
-		}else if(miss && !this.darkDonBg){
-			this.darkDonBg = true
-			this.donBg.classList.add("donbg-dark")
-		}
+		this.darkDonBg = !!miss
 	}
 	posToMs(pos, speed){
 		var circleSize = 70 * this.slotPos.size / 106 / 2
@@ -3095,12 +2995,6 @@
 		}
 		if(!this.multiplayer){
 			pageEvents.remove(this.canvas, "mousedown")
-			this.songBg.parentNode.removeChild(this.songBg)
-			this.songStage.parentNode.removeChild(this.songStage)
-			this.donBg.parentNode.removeChild(this.donBg)
-			delete this.donBg
-			delete this.songBg
-			delete this.songStage
 		}
 		pageEvents.mouseRemove(this)
 

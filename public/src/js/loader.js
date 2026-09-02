@@ -252,6 +252,19 @@ class Loader{
 				}), "/api/scores/get")
 			}
 			
+			// Frame counts and sizes for the background strips. The art is
+			// private, so the public build simply does not have this and
+			// draws no background rather than failing to start.
+			this.addPromise(this.ajax("/assets/backgrounds.json").then(response => {
+				try{
+					assets.backgrounds = JSON.parse(response)
+				}catch(e){
+					assets.backgrounds = null
+				}
+			}).catch(() => {
+				assets.backgrounds = null
+			}), "/assets/backgrounds.json")
+			
 			settings = new Settings()
 			// The audio graph is built above, before settings exist, so
 			// the stored volume is pushed into it here.
