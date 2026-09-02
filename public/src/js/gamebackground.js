@@ -26,21 +26,84 @@ class GameBackground{
 			return
 		}
 		
-		// Chosen from the song rather than at random, so the same song
-		// looks the same every time it is played and two players in a
-		// session see the same thing.
-		var seed = this.seedFrom(view.controller.selectedSong)
-		this.bgSet = this.pick(this.manifest.bgSets, seed)
-		this.feverSet = this.pick(this.manifest.feverSets, seed + 1)
-		this.dancerSet = this.pick(this.manifest.dancerSets, seed + 2)
-		this.footer = seed % 3
-		this.donSet = seed % 3
+		var choice = GameBackground.choose(view.controller.selectedSong, this.manifest)
+		this.bgSet = choice.bgSet
+		this.feverSet = choice.feverSet
+		this.dancerSet = choice.dancerSet
+		this.footer = choice.footer
+		this.donSet = choice.donSet
 		this.donHalf = view.player === 2 ? 2 : 1
 		
 		this.dancers = this.makeDancers()
 		this.startedAt = null
 		this.fever = false
 		this.ready = true
+	}
+	
+	/*
+	 * Which background a song gets, and everything that follows from it.
+	 *
+	 * Taken from the song rather than at random, so a song looks the same
+	 * every time it is played and two players in a session see the same
+	 * thing. Shared with the loader, which has to know what to fetch
+	 * before this exists -- if the two disagreed, the song would load one
+	 * background and draw another.
+	 */
+	static choose(song, manifest){
+		var seed = GameBackground.seed(song)
+		var pick = (list, n) => (list && list.length) ? list[n % list.length] : null
+		return {
+			bgSet: pick(manifest.bgSets, seed),
+			feverSet: pick(manifest.feverSets, seed + 1),
+			dancerSet: pick(manifest.dancerSets, seed + 2),
+			footer: seed % 3,
+			donSet: seed % 3
+		}
+	}
+	
+	static seed(song){
+		var text = (song && (song.hash || song.title)) || ""
+		var seed = 0
+		for(var i = 0; i < text.length; i++){
+			seed = (seed * 31 + text.charCodeAt(i)) % 100003
+		}
+		return seed
+	}
+	
+	/*
+	 * The strips one song needs. All of them together are 12MB, which is
+	 * most of what the game used to load before the title screen; a song
+	 * needs under three, and loads them while its loading screen is up
+	 * rather than while it is being played.
+	 */
+	static assetsFor(song, manifest){
+		if(!manifest || !manifest.assets){
+			return []
+		}
+		var choice = GameBackground.choose(song, manifest)
+		var wanted = [
+			"yatai_bg_normal" + choice.bgSet,
+			"yatai_bg_normal" + choice.bgSet + "_overlay",
+			"yatai_bg_footer" + choice.footer
+		]
+		for(var set of [choice.feverSet]){
+			wanted.push("yatai_bg_fever" + set, "yatai_bg_fever" + set + "_overlay",
+				"yatai_bg_fever" + set + "_mountain", "yatai_bg_fever" + set + "_wave",
+				"yatai_bg_fever" + set + "_footer")
+		}
+		for(var half of [1, 2]){
+			for(var part of ["background", "overlay"]){
+				wanted.push("yatai_bg_don" + choice.donSet + "_" + half + "_" + part)
+			}
+		}
+		for(var i = 0; i < 5; i++){
+			for(var part of ["start", "loop", "end"]){
+				wanted.push("yatai_bg_dancer" + choice.dancerSet + "_" + i + "_" + part)
+			}
+		}
+		// The manifest is the record of what exists: a set with fewer than
+		// five dancers is normal rather than a missing file.
+		return wanted.filter(name => name in manifest.assets)
 	}
 	
 	seedFrom(song){

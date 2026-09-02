@@ -119,6 +119,7 @@ class LoadSong{
 				}
 			}
 		}
+		this.loadBackground()
 
 		if(songObj.sound && songObj.sound.buffer){
 			songObj.sound.gain = snd.musicGain
@@ -194,6 +195,46 @@ class LoadSong{
 		}
 		this.error = true
 	}
+	/*
+	 * The background strips this song needs.
+	 *
+	 * All of them together are 12MB, which was most of what the game
+	 * loaded before the title screen. A song needs under three, and this
+	 * runs while the loading screen is up -- so nothing is fetched once
+	 * play has started, which is the part that would cost notes.
+	 *
+	 * The choice of set has to match what GameBackground makes later, so
+	 * both ask the same function rather than each deciding.
+	 */
+	loadBackground(){
+		if(typeof GameBackground === "undefined" || !assets.backgrounds){
+			return
+		}
+		var names = GameBackground.assetsFor(this.selectedSong, assets.backgrounds)
+		for(var i = 0; i < names.length; i++){
+			let name = names[i]
+			if(name in assets.image){
+				continue
+			}
+			let img = document.createElement("img")
+			var url = gameConfig.assets_baseurl + "img/" + name + ".png" + loader.queryString
+			// Recorded before it resolves, so a second song does not start
+			// the same fetch again while the first is still in flight.
+			assets.image[name] = img
+			this.addPromise(pageEvents.load(img).then(() => {
+				// Decoded before the song starts, for the same reason the
+				// loader decodes its own: a lazy decode lands on whichever
+				// frame first draws it.
+				return img.decode ? img.decode().catch(() => {}) : null
+			}).catch(() => {
+				// A strip that will not load leaves that layer undrawn
+				// rather than stopping the song from starting.
+				delete assets.image[name]
+			}), url)
+			img.src = url
+		}
+	}
+	
 	scaleImg(img, filename, prefix, force){
 		return new Promise((resolve, reject) => {
 			var scale = this.imgScale

@@ -78,7 +78,7 @@ class Loader{
 		}))
 		
 		for(var name in assets.fonts){
-			var url = gameConfig.assets_baseurl + "fonts/" + assets.fonts[name]
+			var url = gameConfig.assets_baseurl + "fonts/" + assets.fonts[name] + this.queryString
 			this.addPromise(new FontFace(name, "url('" + url + "')").load().then(font => {
 				document.fonts.add(font)
 			}), url)
@@ -87,8 +87,16 @@ class Loader{
 		assets.img.forEach(name=>{
 			var id = this.getFilename(name)
 			var image = document.createElement("img")
-			var url = gameConfig.assets_baseurl + "img/" + name
-			this.addPromise(pageEvents.load(image), url)
+			var url = gameConfig.assets_baseurl + "img/" + name + this.queryString
+			// Decoded here rather than the first time it is drawn.
+			// Several of these are very large -- fireworks_anim is
+			// 1840x1840, the go-go Don-chan sheet 2170x1858 -- and a
+			// browser decodes an image lazily, so the cost lands on
+			// whichever frame first draws it. During a song that is a
+			// dropped frame; here it is a loading screen.
+			this.addPromise(pageEvents.load(image).then(() => {
+				return image.decode ? image.decode().catch(() => {}) : null
+			}), url)
 			image.id = name
 			image.src = url
 			this.assetsDiv.appendChild(image)
@@ -181,7 +189,7 @@ class Loader{
 					let name = cat.songSkin.bg_img
 					var id = this.getFilename(name)
 					var image = document.createElement("img")
-					var url = gameConfig.assets_baseurl + "img/" + name
+					var url = gameConfig.assets_baseurl + "img/" + name + this.queryString
 					categoryPromises.push(pageEvents.load(image).catch(response => {
 						return this.errorMsg(response, url)
 					}))
@@ -390,7 +398,7 @@ class Loader{
 		})
 	}
 	soundUrl(name){
-		return gameConfig.assets_baseurl + "audio/" + name
+		return gameConfig.assets_baseurl + "audio/" + name + this.queryString
 	}
 	loadSound(name, gain){
 		var id = this.getFilename(name)
