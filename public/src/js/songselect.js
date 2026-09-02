@@ -115,78 +115,14 @@ class SongSelect{
 
 		this.font = strings.font
 		
-		this.songs = []
-		for(let song of assets.songs){
-			this.updateSongSearchText(song)
-			this.songs.push(this.addSong(song))
-		}
-		this.songs.sort((a, b) => {
-			var catA = a.originalCategory in this.songSkin ? this.songSkin[a.originalCategory] : this.songSkin.default
-			var catB = b.originalCategory in this.songSkin ? this.songSkin[b.originalCategory] : this.songSkin.default
-			if(catA.sort !== catB.sort){
-				return catA.sort > catB.sort ? 1 : -1
-			}else if(a.originalCategory !== b.originalCategory){
-				return a.originalCategory > b.originalCategory ? 1 : -1
-			}else if(a.order !== b.order){
-				return a.order > b.order ? 1 : -1
-			}else{
-				return a.id > b.id ? 1 : -1
-			}
-		})
-		if(assets.songs.length){
-			// this.songs.push({
-			// 	title: strings.back,
-			// 	skin: this.songSkin.back,
-			// 	action: "back"
-			// })
-			this.songs.push({
-				title: strings.randomSong,
-				skin: this.songSkin.random,
-				action: "random",
-				category: strings.randomSong,
-				canJump: true
-			})
-			this.songs.push({
-				title: strings.search.search,
-				skin: this.songSkin.search,
-				action: "search",
-				category: strings.search.search,
-			})
-			// this.songs.push({
-			// 	title: strings.songSuggest,
-			// 	skin: this.songSkin.songSuggest,
-			// 	action: "songSuggest",
-			// 	category: strings.songSuggest
-			// })
-		}
-		if(touchEnabled){
-			if(fromTutorial === "tutorial"){
-				fromTutorial = false
-			}
-		}else{
-			this.songs.push({
-				title: strings.howToPlay,
-				skin: this.songSkin.tutorial,
-				action: "tutorial",
-				category: strings.howToPlay
-			})
+		// touchEnabled devices have no tutorial entry to land on.
+		if(touchEnabled && fromTutorial === "tutorial"){
+			fromTutorial = false
 		}
 		this.showWarning = showWarning
 		if(showWarning && showWarning.name === "scoreSaveFailed"){
 			scoreStorage.scoreSaveFailed = true
 		}
-		this.songs.push({
-			title: strings.aboutSimulator,
-			skin: this.songSkin.about,
-			action: "about",
-			category: strings.aboutSimulator
-		})
-		this.songs.push({
-			title: strings.gameSettings,
-			skin: this.songSkin.settings,
-			action: "settings",
-			category: strings.gameSettings
-		})
 		
 		var showCustom = false
 		if(gameConfig.google_credentials.gdrive_enabled){
@@ -194,27 +130,19 @@ class SongSelect{
 		}else if("webkitdirectory" in HTMLInputElement.prototype && !(/Android|iPhone|iPad/.test(navigator.userAgent))){
 			showCustom = true
 		}
-		if(showCustom){
-			this.songs.push({
-				title: assets.customSongs ? strings.customSongs.default : strings.customSongs.title,
-				skin: this.songSkin.customSongs,
-				action: "customSongs",
-				category: assets.customSongs ? strings.customSongs.default : strings.customSongs.title
-			})
-		}
-		if(plugins.hasSettings()){
-			this.songs.push({
-				title: strings.plugins.title,
-				skin: this.songSkin.plugins,
-				action: "plugins",
-				category: strings.plugins.title
-			})
-		}
-		// this.songs.push({
-		// 	title: strings.back,
-		// 	skin: this.songSkin.back,
-		// 	action: "back"
-		// })
+		
+		// The navigator owns what is in the wheel; this.songs is its current
+		// listing. Today that is one flat array of everything, exactly as it
+		// was built here before.
+		this.navigator = new SongNavigator({
+			songs: assets.songs,
+			skin: this.songSkin,
+			addSong: song => this.addSong(song),
+			updateSearchText: song => this.updateSongSearchText(song),
+			showTutorial: !touchEnabled,
+			showCustomSongs: showCustom
+		})
+		this.songs = this.navigator.items
 		
 		this.songAsset = {
 			marginTop: 104,

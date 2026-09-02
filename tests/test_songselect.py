@@ -133,3 +133,36 @@ def test_nothing_is_disabled_outside_a_session(wheel):
     any_disabled = wheel.page.evaluate(
         "() => __ss.songs.some(s => __ss.entryDisabledInSession(s))")
     assert any_disabled is False
+
+def test_navigator_owns_the_listing(wheel):
+    """this.songs is the navigator's current listing, not its own array."""
+    same = wheel.page.evaluate("() => __ss.songs === __ss.navigator.items")
+    assert same is True, "SongSelect is not reading from the navigator"
+    assert wheel.page.evaluate("() => __ss.navigator.path.length") == 0, \
+        "the root listing should be at the root of the tree"
+
+
+def test_root_listing_is_unchanged_by_the_refactor(wheel):
+    """A fingerprint of the old flat list, so the no-op stays a no-op.
+
+    Rebuilding through the navigator has to produce the same entries in
+    the same order as building them inline did. Anything that changes this
+    should be a stage that means to.
+    """
+    shape = wheel.page.evaluate("""() => {
+        const items = __ss.navigator.items
+        return {
+            total: items.length,
+            songs: items.filter(s => s.courses).length,
+            actions: items.filter(s => s.action).map(s => s.action),
+            firstCategory: items[0].originalCategory,
+            lastCategory: items.filter(s => s.courses).slice(-1)[0].originalCategory,
+            sortedIds: items.filter(s => s.courses).slice(0, 5).map(s => s.id),
+        }
+    }""")
+    assert shape["songs"] == 3367
+    assert shape["total"] == shape["songs"] + len(shape["actions"])
+    assert shape["actions"] == ["random", "search", "tutorial", "about",
+                                "settings", "customSongs"]
+    assert shape["firstCategory"] == "Pop"
+    assert shape["lastCategory"] == "創作譜面"

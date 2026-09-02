@@ -6,6 +6,7 @@ var assets = {
 		"parseosu.js",
 		"titlescreen.js",
 		"scoresheet.js",
+		"songnavigator.js",
 		"songselect.js",
 		"keyboard.js",
 		"gameinput.js",
