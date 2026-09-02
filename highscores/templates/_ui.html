@@ -1,0 +1,108 @@
+{# ------------------------------------------------------------------ #
+ # Shared bits. Imported "with context" so the globals injected by
+ # app.globals_() (DIFF_LABEL, DIFF_COLOR, CROWN_LABEL) are in scope.
+ # ------------------------------------------------------------------ #}
+
+{% macro crown(kind, cls='') -%}
+{%- if kind -%}
+<svg class="crown {{ kind }} {{ cls }}" role="img" aria-label="{{ CROWN_LABEL[kind] }}"><title>{{ CROWN_LABEL[kind] }}</title><use href="#i-crown"/></svg>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro crown_slot(kind, cls='') -%}
+<svg class="crown {{ kind or 'none' }} {{ cls }}" role="img" aria-label="{{ CROWN_LABEL[kind] if kind else 'No crown' }}"><title>{{ CROWN_LABEL[kind] if kind else 'No crown' }}</title><use href="#i-crown"/></svg>
+{%- endmacro %}
+
+{% macro stars(n, cls='') -%}
+{%- if n -%}
+<span class="stars {{ cls }}" title="{{ n }}{{ '★' }}">
+{%- for _ in range([n, 10]|min) %}<svg viewBox="0 0 19 18.4"><use href="#i-star"/></svg>{% endfor -%}
+</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro di(d, cls='') -%}
+<i class="di {{ d }} {{ cls }}" role="img" aria-label="{{ DIFF_LABEL[d] }}"></i>
+{%- endmacro %}
+
+{% macro diff(d, cls='') -%}
+<span class="diff {{ cls }}" style="--c:{{ DIFF_COLOR[d] }}">{{ di(d) }}<span class="dl">{{ DIFF_LABEL[d] }}</span></span>
+{%- endmacro %}
+
+{% macro diff_link(d, href, cls='') -%}
+<a class="diff {{ cls }}" style="--c:{{ DIFF_COLOR[d] }}" href="{{ href }}">{{ di(d) }}<span class="dl">{{ DIFF_LABEL[d] }}</span></a>
+{%- endmacro %}
+
+{% macro genre(cat) -%}
+<span class="genre" style="--g:{{ cat.song_skin.background if cat and cat.song_skin else '#4a4356' }}"><i class="dot"></i>{{ cat.title if cat else '—' }}</span>
+{%- endmacro %}
+
+{% macro rank(n, of=None) -%}
+<span class="rank {{ 'r%d'|format(n) if n and n < 4 }}">{{ n }}</span>{% if of %} <span class="dim small">/{{ of }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro player(name, kind=None) -%}
+<a class="who" href="/highscores/user/{{ name }}">{{ name }}{{ crown(kind) }}</a>
+{%- endmacro %}
+
+{# ---------- score columns, identical everywhere a score appears ---- #}
+
+{% macro score_head(roll=True) -%}
+<th class="num sortable" data-sort="num">Score</th>
+<th class="num sortable" data-sort="num">Acc</th>
+<th class="num jd-cell sortable" data-sort="num" title="Good">Good</th>
+<th class="num jd-cell sortable" data-sort="num" title="OK">OK</th>
+<th class="num jd-cell sortable" data-sort="num" title="Bad">Bad</th>
+<th class="num jd-mini-cell" title="Good / OK / Bad">G/O/B</th>
+<th class="num hide-sm sortable" data-sort="num">Combo</th>
+{% if roll %}<th class="num hide-sm sortable" data-sort="num">Roll</th>{% endif %}
+{%- endmacro %}
+
+{% macro score_cells(r, roll=True) -%}
+{% set total = (r.good or 0) + (r.ok or 0) + (r.bad or 0) %}
+<td class="num nowrap c-score"><span class="pts">{{ "{:,}".format(r.points) }}</span></td>
+<td class="num c-acc">
+  <span class="acc"><b>{{ "%.1f"|format(r.accuracy) }}<span class="dim">%</span></b>
+    {%- if total %}
+    <span class="accbar" aria-hidden="true"
+      ><i class="g" style="width:{{ (r.good / total * 100)|round(2) }}%"></i
+      ><i class="o" style="width:{{ (r.ok / total * 100)|round(2) }}%"></i
+      ><i class="b" style="width:{{ (r.bad / total * 100)|round(2) }}%"></i></span>
+    {%- endif %}
+  </span>
+</td>
+<td class="num jd-cell jd good {{ 'zero' if not r.good }}">{{ "{:,}".format(r.good or 0) }}</td>
+<td class="num jd-cell jd ok {{ 'zero' if not r.ok }}">{{ "{:,}".format(r.ok or 0) }}</td>
+<td class="num jd-cell jd bad {{ 'zero' if not r.bad }}">{{ "{:,}".format(r.bad or 0) }}</td>
+<td class="num jd-mini-cell c-mini"><span class="jd-mini"
+  ><span class="jd good {{ 'zero' if not r.good }}">{{ r.good or 0 }}</span><i>/</i
+  ><span class="jd ok {{ 'zero' if not r.ok }}">{{ r.ok or 0 }}</span><i>/</i
+  ><span class="jd bad {{ 'zero' if not r.bad }}">{{ r.bad or 0 }}</span></span></td>
+<td class="num hide-sm c-combo">{{ "{:,}".format(r.maxCombo or 0) }}</td>
+{% if roll %}<td class="num hide-sm c-roll {{ 'dim' if not r.drumroll }}">{{ "{:,}".format(r.drumroll or 0) }}</td>{% endif %}
+{%- endmacro %}
+
+{% macro song_cell(song, stars_n=None, cls='c-main', cat=None) -%}
+<td class="song {{ cls }}">
+  <span class="line">
+    {%- if cat %}<i class="dot" style="--g:{{ cat.song_skin.background if cat.song_skin else '#4a4356' }}"
+       title="{{ cat.title }}"></i>{% endif %}
+    <a href="/highscores/song/{{ song.id }}">{{ song.title }}</a>
+  </span>
+  {%- if stars_n or song.subtitle %}
+  <span class="meta">
+    {{- stars(stars_n) if stars_n -}}
+    {%- if song.subtitle %}<span class="sub">{{ song.subtitle }}</span>{% endif -%}
+  </span>
+  {%- endif %}
+</td>
+{%- endmacro %}
+
+{# Build a player-page filter URL. Pass none for a dimension to clear it,
+   which is what makes each chip a toggle. #}
+{% macro filter_url(base, diff=None, crown=None) -%}
+{%- set parts = [] -%}
+{%- if diff %}{% set _ = parts.append("diff=" ~ diff) %}{% endif -%}
+{%- if crown %}{% set _ = parts.append("crown=" ~ crown) %}{% endif -%}
+{{- base }}{{ "?" ~ parts|join("&") if parts else "" -}}
+{%- endmacro %}

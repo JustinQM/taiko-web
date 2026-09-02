@@ -5,7 +5,7 @@ ASSETS_BASEURL = '/assets/'
 SONGS_BASEURL = '/songs/'
 EMAIL = None
 ACCOUNTS = True
-CUSTOM_JS = ''
+CUSTOM_JS = '/src/custom.js'
 PLUGINS = []
 PREVIEW_TYPE = 'mp3'
 

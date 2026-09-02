@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}{{ DIFF_LABEL[diff] if diff else "All charts" }} — Taiko Leaderboards{% endblock %}
+{% block body %}
+
+<section class="hero">
+  {% if diff %}
+  <div class="hero-art" style="--hero:linear-gradient(115deg,{{ DIFF_COLOR[diff] }},#0000)"></div>
+  {% endif %}
+  <div class="hero-in">
+    {% if diff %}<i class="di {{ diff }} xl" role="img" aria-label="{{ DIFF_LABEL[diff] }}"></i>{% endif %}
+    <div class="hero-txt">
+      <h1>{{ DIFF_LABEL[diff] if diff else "All charts" }}</h1>
+      <p class="sub">{{ rows|length }} chart{{ "" if rows|length == 1 else "s" }} with at least one score{% if diff %}
+        · {{ empty_total }} still unclaimed{% endif %}</p>
+      <div class="hero-meta">
+        <form class="search" method="get" role="search">
+          <input name="q" value="{{ q }}" placeholder="Filter by title…"
+                 autocomplete="off" data-filter="#chart-rows">
+        </form>
+        {% if q %}<a class="tag" href="{{ '/highscores/browse/' + diff if diff else '/highscores/browse' }}">clear “{{ q }}”</a>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Charts</h2>
+    <span class="count" data-filter-count>{{ rows|length }} SHOWN</span>
+  </div>
+  <div class="tw cards">
+    <table data-sortable>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="text">Song</th>
+          {% if not diff %}<th>Difficulty</th>{% endif %}
+          <th class="num sortable" data-sort="num">Players</th>
+          <th class="sortable" data-sort="text">Leader</th>
+          {{ ui.score_head() }}
+        </tr>
+      </thead>
+      <tbody id="chart-rows">
+      {% for r in rows %}
+        <tr data-filter-text="{{ r.song.title }} {{ r.song.subtitle or '' }}">
+          {{ ui.song_cell(r.song, r.stars, cat=r.cat) }}
+          {% if not diff %}<td class="c-diff">{{ ui.diff(r.diff) }}</td>{% endif %}
+          <td class="num c-players">{{ r.players }}</td>
+          <td class="nowrap c-sub">{{ ui.player(r.leader.user, r.leader.crown) }}</td>
+          {{ ui.score_cells(r.leader) }}
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="20">Nothing here yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if empty %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Unclaimed</h2>
+    <span class="count">{{ empty_total }} CHARTS WITH NO SCORE</span>
+  </div>
+  <div class="panel-body">
+    <div class="tags">
+      {% for s in empty %}
+        <a class="tag" href="/highscores/song/{{ s.id }}"><i class="di {{ diff }}"></i><span class="t">{{ s.title }}</span></a>
+      {% endfor %}
+    </div>
+    {% if empty_total > empty|length %}
+      <p class="dim small" style="margin:12px 0 0">First {{ empty|length }} by title.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

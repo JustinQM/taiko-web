@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}{{ u.name }} — Taiko Leaderboards{% endblock %}
+{% block body %}
+
+{% set base = "/highscores/user/" ~ u.name %}
+{% set crowns = [("rainbow", u.crowns.rainbow), ("gold", u.crowns.gold), ("silver", u.crowns.silver)] %}
+
+<section class="hero">
+  <div class="hero-art" style="--hero:url('/assets/img/bg_genre_6.png');--wash:#ff5716"></div>
+  <div class="hero-in">
+    <div class="hero-txt">
+      <h1>{{ u.name }}</h1>
+      <div class="crown-tot" style="margin-top:12px">
+        {% for kind, n in crowns %}
+          <span>{{ ui.crown(kind, 'lg') }}{{ n }} <em>{{ CROWN_LABEL[kind] }}</em></span>
+        {% endfor %}
+      </div>
+      <div class="stats" style="margin-top:14px">
+        <div class="stat"><b>{{ "{:,}".format(u.plays) }}</b><span>Charts played</span></div>
+        <div class="stat"><b>{{ u.firsts }}</b><span>First places</span></div>
+        <div class="stat"><b>{{ u.crowns.rainbow + u.crowns.gold + u.crowns.silver }}</b><span>Crowns</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>By difficulty</h2></div>
+  <div class="tw diffcards">
+    <table class="fit">
+      <thead>
+        <tr>
+          <th>Difficulty</th>
+          <th class="num">Played</th>
+          <th class="num hide-sm">Pool</th>
+          <th class="num">Coverage</th>
+          <th class="num">Firsts</th>
+          <th class="num">Avg place</th>
+          <th>Crowns</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in DIFFICULTIES %}
+        {% set s = u.per_diff.get(d) %}
+        {% if s and s.pool %}
+        <tr>
+          <td class="d-diff">{{ ui.diff_link(d, base ~ "?diff=" ~ d) }}</td>
+          <td class="num d-played">{{ s.plays }}</td>
+          <td class="num hide-sm dim d-pool">{{ s.pool }}</td>
+          <td class="num nowrap d-cover">
+            <span class="bar" style="--c:{{ DIFF_COLOR[d] }}"><i style="width:{{ s.coverage|round(1) }}%"></i></span>
+            {{ "%.0f"|format(s.coverage) }}%
+          </td>
+          <td class="num d-firsts">{{ s.firsts }}</td>
+          <td class="num d-avg">{{ "%.2f"|format(s.avg_rank) }}</td>
+          <td class="d-crowns">
+            <span class="crown-tot">
+            {% for kind, _ in crowns %}
+              <a href="{{ base }}?diff={{ d }}&crown={{ kind }}">{{ ui.crown(kind) }}{{ s.crowns[kind] }}</a>
+            {% endfor %}
+            </span>
+          </td>
+        </tr>
+        {% endif %}
+      {% else %}
+        <tr><td class="empty" colspan="7">No charts played.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="notice">Average place counts every chart anyone has played at that difficulty.
+    Charts {{ u.name }} hasn’t played score as last place plus one, so playing a small
+    share of the pool pulls the average down.</p>
+</section>
+
+{% if genres %}
+{% set gtotal = genres|sum(attribute='count') %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Genres</h2>
+    <span class="count">{{ genres|length }} REPRESENTED</span>
+  </div>
+  <div class="panel-body">
+    <div class="gbar" title="Share of charts played by genre">
+      {% for g in genres %}
+        <i style="--g:{{ g.cat.song_skin.background if g.cat.song_skin else '#4a4356' }};
+                  width:{{ (g.count / gtotal * 100)|round(2) }}%"
+           title="{{ g.cat.title }} — {{ g.count }}"></i>
+      {% endfor %}
+    </div>
+    <div class="tags" style="margin-top:13px">
+      {% for g in genres %}
+        <span class="tag">{{ ui.genre(g.cat) }}<b>{{ g.count }}</b>
+          <span class="dim small">{{ "%.0f"|format(g.count / gtotal * 100) }}%</span></span>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Scores</h2>
+    <div class="search">
+      <input placeholder="Filter by title…" autocomplete="off" data-filter="#play-rows">
+    </div>
+    <span class="count" data-filter-count>{{ plays|length }} SHOWN</span>
+  </div>
+
+  <div class="panel-body" style="border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    {% for d in DIFFICULTIES %}
+      {% if u.per_diff.get(d) and u.per_diff[d].plays %}
+        {{ ui.diff_link(d,
+             ui.filter_url(base, none if diff_filter == d else d, crown_filter),
+             "on" if diff_filter == d else "") }}
+      {% endif %}
+    {% endfor %}
+    <span style="width:1px;height:20px;background:var(--line)"></span>
+    <a class="tag {{ 'on' if crown_filter == 'any' }}"
+       href="{{ ui.filter_url(base, diff_filter, none if crown_filter == 'any' else 'any') }}">Any crown</a>
+    {% for kind, _ in crowns %}
+      <a class="tag {{ 'on' if crown_filter == kind }}"
+         href="{{ ui.filter_url(base, diff_filter, none if crown_filter == kind else kind) }}">
+        {{ ui.crown(kind) }}{{ CROWN_LABEL[kind] }}</a>
+    {% endfor %}
+    {% if diff_filter or crown_filter %}
+      <a class="tag clear" href="{{ base }}" style="margin-left:auto">Clear filters ×</a>
+    {% endif %}
+  </div>
+
+  <div class="tw cards">
+    <table data-sortable>
+      <thead>
+        <tr>
+          <th class="num sortable" data-sort="num">#</th>
+          <th class="sortable" data-sort="text">Song</th>
+          <th>Difficulty</th>
+          <th class="hide-sm">Genre</th>
+          {{ ui.score_head() }}
+          <th class="num hide-md" title="Players on this chart">Field</th>
+        </tr>
+      </thead>
+      <tbody id="play-rows">
+      {% for p in plays %}
+        <tr data-filter-text="{{ p.song.title }} {{ p.song.subtitle or '' }}">
+          <td class="num c-rank">{{ ui.rank(p.rank) }}</td>
+          {{ ui.song_cell(p.song, p.stars) }}
+          <td class="nowrap c-diff">{{ ui.diff(p.diff) }}{{ ui.crown(p.crown) }}</td>
+          <td class="hide-sm c-genre">{{ ui.genre(p.cat) }}</td>
+          {{ ui.score_cells(p) }}
+          <td class="num hide-md dim c-field">{{ p.players }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="20">Nothing matches that filter.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}

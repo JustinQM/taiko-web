@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block body %}
+
+<section class="hero">
+  <div class="hero-art" style="--hero:url('/assets/img/bg_genre_6.png');--wash:#ff5716"></div>
+  <div class="hero-in">
+    <img class="don" src="/assets/img/dancing-don.gif" alt="" aria-hidden="true"
+         width="120" height="115" decoding="async">
+    <div class="hero-txt">
+      <h1>Every score on this cabinet</h1>
+      <p class="sub">Ranked on points, with the full Good / OK / Bad breakdown behind
+        every accuracy figure. Crowns come straight from the game.</p>
+      <div class="stats" style="margin-top:16px">
+        <div class="stat"><b>{{ players }}</b><span>Players</span></div>
+        <div class="stat"><b>{{ "{:,}".format(songs_ranked) }}</b><span>Ranked charts</span></div>
+        <div class="stat"><b>{{ "{:,}".format(total_songs) }}</b><span>Songs installed</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% set qs = "?diff=" ~ crown_diff if crown_diff else "" %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Crown standings</h2>
+    <div class="pill-row">
+      <a class="diff plain {{ 'on' if not crown_diff }}" href="/highscores/">All</a>
+      {% for d in DIFFICULTIES %}
+        {{ ui.diff_link(d, "/highscores/?diff=" ~ d, "on" if crown_diff == d else "") }}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="tw crowns">
+    <table data-sortable>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th class="sortable" data-sort="text">Player</th>
+          <th>Crowns</th>
+          <th class="num sortable" data-sort="num"
+              title="Rainbow 3, Full Combo 2, Clear 1">Total</th>
+          <th class="num sortable" data-sort="num">Coverage</th>
+          <th class="num sortable" data-sort="num" title="Lower is better">Avg place</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in standings %}
+        <tr>
+          <td class="num k-place">{{ ui.rank(p.place) }}</td>
+          <td class="k-name"><a href="/highscores/user/{{ p.name }}{{ qs }}">{{ p.name }}</a></td>
+          <td class="k-crowns">
+            <span class="crown-tot">
+            {% for kind in ["rainbow", "gold", "silver"] %}
+              <a href="/highscores/user/{{ p.name }}?crown={{ kind }}{{ '&diff=' ~ crown_diff if crown_diff }}"
+                 class="{{ 'nil' if not p.crowns[kind] }}"
+                 title="{{ CROWN_LABEL[kind] }} — see the {{ p.crowns[kind] }} chart{{ '' if p.crowns[kind] == 1 else 's' }}"
+                >{{ ui.crown(kind) }}{{ p.crowns[kind] }}</a>
+            {% endfor %}
+            </span>
+          </td>
+          <td class="num k-total">
+            <a class="tot" href="/highscores/user/{{ p.name }}?crown=any{{ '&diff=' ~ crown_diff if crown_diff }}"
+               title="Every crowned chart — {{ p.total }} in all">{{ p.points }}</a>
+            <em class="raw">{{ p.total }} crown{{ "" if p.total == 1 else "s" }}</em>
+          </td>
+          <td class="num k-cov nowrap" title="{{ p.plays }} of {{ p.pool }} ranked charts">
+            <span class="bar" style="--c:{{ DIFF_COLOR[crown_diff] if crown_diff else '#ffb02e' }}"
+              ><i style="width:{{ p.coverage|round(1) }}%"></i></span>
+            {{ "%.0f"|format(p.coverage) }}%
+          </td>
+          <td class="num k-avg">{{ "%.2f"|format(p.avg_rank) }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="6">Nobody has played anything at this difficulty yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="notice"><b>Crowns</b> measure how much of the catalog you have
+    cleared; <b>average place</b> measures how you compare with everyone else on
+    the charts themselves. The total weights each crown by how hard it is to
+    earn — a Donderful Combo counts 3, a Full Combo 2, a Clear 1. Click any
+    crown to see the charts behind it.</p>
+</section>
+
+{% if newest_records %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>New records</h2>
+    <span class="count">{{ newest_records|length }} TAKEOVER{{ "" if newest_records|length == 1 else "S" }}</span>
+  </div>
+  <div class="panel-body">
+    <div class="records">
+      {% for r in newest_records %}
+      <article class="record">
+        <div class="top-line">
+          {{ ui.player(r.user, r.crown) }}
+          <span class="took">TOOK 1ST</span>
+        </div>
+        <a class="title" href="/highscores/song/{{ r.song.id }}">{{ r.song.title }}</a>
+        <div class="foot">
+          {{ ui.diff(r.diff) }}
+          <span class="pts">{{ "{:,}".format(r.points) }}</span>
+        </div>
+        <div class="beat">
+          <span class="jd-mini"
+            ><span class="jd good {{ 'zero' if not r.good }}">{{ r.good or 0 }}</span><i>/</i
+            ><span class="jd ok {{ 'zero' if not r.ok }}">{{ r.ok or 0 }}</span><i>/</i
+            ><span class="jd bad {{ 'zero' if not r.bad }}">{{ r.bad or 0 }}</span></span>
+          · {{ "%.1f"|format(r.accuracy) }}% · {{ "{:,}".format(r.maxCombo or 0) }} combo
+        </div>
+        <div class="beat">
+          {%- if r.previous_holder %}beat {{ r.previous_holder }} · {{ "{:,}".format(r.previous_points) }}
+          {%- else %}first claim on this chart{% endif %}</div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recent scores</h2>
+    <span class="count">{{ feed|length }} SHOWN</span>
+  </div>
+  <div class="tw cards">
+    <table data-sortable>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="text">Player</th>
+          <th class="sortable" data-sort="text">Song</th>
+          <th>Difficulty</th>
+          <th class="num sortable" data-sort="num">Place</th>
+          {{ ui.score_head() }}
+          <th class="num hide-md">When</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for e in feed %}
+        <tr>
+          <td class="nowrap c-sub">{{ ui.player(e.user, e.crown) }}</td>
+          {{ ui.song_cell(e.song) }}
+          <td class="c-diff">{{ ui.diff(e.diff) }}</td>
+          <td class="num nowrap c-place">{% if e.rank %}{{ ui.rank(e.rank, e.players) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+          {{ ui.score_cells(e) }}
+          <td class="num hide-md dim nowrap c-when">{{ e.ts|ago }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="20">No scores recorded yet. The poller picks up
+          new scores within a minute of them being set.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if feed and feed[0].historic %}
+  <p class="notice">No score changes have been observed yet, so this is the current
+    standings ordered by points rather than a live feed. Anything set from now on
+    appears here with a timestamp.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

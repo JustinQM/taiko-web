@@ -43,11 +43,23 @@ services:
       - ./config.dev.py:/srv/taiko-web/config.py:ro
     command: python server.py
 
+  highscores:
+    build:
+      context: .
+      dockerfile: highscores/Dockerfile
+    image: taiko-highscores:dev
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: taiko
+
   nginx:
     image: taiko-web:dev
     depends_on:
       - app
       - multiplayer
+      - highscores
     ports:
       - "127.0.0.1:34900:80"
     command: nginx -g "daemon off;"

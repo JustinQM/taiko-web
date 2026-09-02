@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}{{ song.title }} — Taiko Leaderboards{% endblock %}
+{% block body %}
+
+{% set skin = cat.song_skin if cat and cat.song_skin else None %}
+{% set bg = skin.bg_img if skin and skin.bg_img else 'bg_genre_def.png' %}
+
+<section class="hero">
+  <div class="hero-art" style="--hero:url('/assets/img/{{ bg }}');
+       --wash:{{ skin.background if skin else '#4a4356' }}"></div>
+  <div class="hero-in">
+    <div class="hero-txt">
+      <h1>{{ song.title }}</h1>
+      {% if song.subtitle %}<p class="sub">{{ song.subtitle }}</p>{% endif %}
+      <div class="hero-meta">
+        {{ ui.genre(cat) }}
+        {% for d, b in boards.items() %}
+          <a class="diff" style="--c:{{ DIFF_COLOR[d] }}" href="#d-{{ d }}">
+            {{ ui.di(d) }}<span class="dl">{{ DIFF_LABEL[d] }}</span>
+            <span class="dim">{{ b.rows|length }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% for d, b in boards.items() %}
+<section class="panel" id="d-{{ d }}">
+  <div class="panel-head">
+    {{ ui.diff(d, 'lg') }}
+    {{ ui.stars(b.stars, 'lg') }}
+    {% if b.branch %}<span class="tag">Branching</span>{% endif %}
+    <span style="margin-left:auto"></span>
+    <span class="count">{{ b.rows|length }} PLAYER{{ "" if b.rows|length == 1 else "S" }}</span>
+  </div>
+
+  {% if b.rows %}
+  <div class="tw cards">
+    <table data-sortable>
+      <thead>
+        <tr>
+          <th class="num sortable" data-sort="num">#</th>
+          <th class="sortable" data-sort="text">Player</th>
+          <th>Crown</th>
+          {{ ui.score_head() }}
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in b.rows %}
+        <tr class="{{ 'lead' if r.rank == 1 }}">
+          <td class="num c-rank">{{ ui.rank(r.rank) }}</td>
+          <td class="nowrap c-main"><a class="who" href="/highscores/user/{{ r.user }}">{{ r.user }}</a></td>
+          <td class="c-crown">{{ ui.crown_slot(r.crown) }}
+            <span class="dim small hide-sm">{{ CROWN_LABEL[r.crown] if r.crown else "—" }}</span></td>
+          {{ ui.score_cells(r) }}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty" style="padding:30px var(--pad)">No scores on this chart yet.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="panel"><p class="empty">This song has no charts.</p></section>
+{% endfor %}
+
+{% endblock %}
