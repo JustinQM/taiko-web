@@ -6,6 +6,17 @@ import json
 import random
 import sys
 
+# The bind address is configurable because the multiplayer server and the
+# reverse proxy run in separate containers: bound to localhost it is
+# unreachable from nginx and /p2 returns 502. config.py is optional here,
+# unlike in app.py, so that server.py still runs standalone.
+try:
+    import config
+except ModuleNotFoundError:
+    config = None
+
+BIND = getattr(config, "MULTIPLAYER_BIND", None) or "localhost"
+
 server_status = {
     "waiting": {},
     "users": [],
@@ -407,10 +418,10 @@ async def connection(ws, path):
             server_status["invites"].pop(user["session"], None)
 
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 34802
-print('Starting server on port %d' % port)
+print('Starting server on %s port %d' % (BIND, port))
 
 async def main():
-    async with websockets.serve(connection, "localhost", port):
+    async with websockets.serve(connection, BIND, port):
         await asyncio.Future()
 
 try:

@@ -20,6 +20,11 @@ PLUGINS = [{
     'hide': False
 }]
 
+# Address the multiplayer server binds to. Use '0.0.0.0' when it runs in
+# its own container, so the reverse proxy can reach it; the default is
+# only reachable from the same host.
+MULTIPLAYER_BIND = 'localhost'
+
 # Filetype to use for song previews. (mp3/ogg)
 PREVIEW_TYPE = 'mp3'
 

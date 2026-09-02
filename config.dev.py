@@ -9,6 +9,9 @@ CUSTOM_JS = ''
 PLUGINS = []
 PREVIEW_TYPE = 'mp3'
 
+# nginx runs in a separate container and cannot reach localhost here.
+MULTIPLAYER_BIND = '0.0.0.0'
+
 MONGO = {
     'host': ['mongo:27017'],
     'database': 'taiko'
