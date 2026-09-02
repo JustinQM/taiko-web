@@ -275,12 +275,26 @@ class SongSelect{
 			waitPreview: 0,
 			skip: false
 		}
+		// Modelled on YataiDON, which slides every box on an ease-out
+		// cubic over 166ms and expands the selected one separately.
+		//
+		// The base is divided rather than replaced so the setting still
+		// reads as a multiplier, and 333 over the default 2x is that
+		// 166ms. The ratios matter more than the total: at the old 0.3 and
+		// 0.1 the slide itself was only 0.2 of the step -- 40ms of a 200ms
+		// move -- and the rest was the selected box shrinking and growing,
+		// which is why the wheel read as snapping between positions rather
+		// than travelling between them. At 0.15 and 0.05 the slide is 0.6
+		// of the step and the resize happens around it.
 		this.songSelecting = {
-			// Divided rather than replaced so the setting reads as a
-			// multiplier: 2x is twice as fast as upstream's default.
-			speed: 400 / settings.getItem("songSelectSpeed"),
-			resize: 0.3,
-			scrollDelay: 0.1
+			speed: 333 / settings.getItem("songSelectSpeed"),
+			resize: 0.15,
+			scrollDelay: 0.05,
+			// An input arriving within this of the last one means the
+			// player is holding or mashing, and turns a single step into a
+			// jump of skipBy with no slide, as YataiDON does at 50ms.
+			skipWindow: 50,
+			skipBy: 10
 		}
 		
 		this.startPreview(true)
@@ -1454,6 +1468,82 @@ class SongSelect{
 		return null
 	}
 	
+	// Commit the move the wheel is part way through: advance the index,
+	// play the step sound and settle the selection. redraw calls this when
+	// the slide reaches the point the index flips, and moveToSong calls it
+	// when a new input arrives before that, so the new move starts from a
+	// settled wheel rather than being dropped.
+	applyPendingMove(){
+			var isJump = this.state.catJump
+			var isSkip = this.state.skip
+			var previousSelectedSong = this.selectedSong
+			
+			if(!isJump){
+				if(!isSkip){
+					this.playSound("se_ka", 0, this.lastMoveBy)
+				}
+				this.selectedSong = this.mod(this.songs.length, this.selectedSong + this.state.move)
+			}else{
+				var currentCat = this.songs[this.selectedSong].category
+				var currentIdx = this.mod(this.songs.length, this.selectedSong)
+
+				if(this.state.move > 0){
+					var nextSong = this.songs.find(song => this.mod(this.songs.length, this.songs.indexOf(song)) > currentIdx && song.category !== currentCat && song.canJump)
+					if(!nextSong){
+						nextSong = this.songs[0]
+					}
+				}else{
+					var isFirstInCat = this.songs.findIndex(song => song.category === currentCat) == this.selectedSong
+					if(!isFirstInCat){
+						var nextSong = this.songs.find(song => this.mod(this.songs.length, this.songs.indexOf(song)) < currentIdx && song.category === currentCat && song.canJump)
+					}else{
+						var idx = this.songs.length - 1
+						var nextSong
+						var lastCat
+						for(;idx>=0;idx--){
+							if(this.songs[idx].category !== lastCat && this.songs[idx].action !== "back"){
+								lastCat = this.songs[idx].category
+								if(nextSong){
+									break
+								}
+							}
+							if(lastCat !== currentCat && idx < currentIdx){
+								nextSong = idx
+							}
+						}
+						nextSong = this.songs[nextSong]
+					}
+
+					if(!nextSong){
+						var rev = [...this.songs].reverse()
+						nextSong = rev.find(song => song.canJump)
+					}
+				}
+
+				this.selectedSong = this.songs.indexOf(nextSong)
+				this.state.catJump = false
+			}
+
+			if(previousSelectedSong !== this.selectedSong){
+				pageEvents.send("song-select-move", this.songs[this.selectedSong])
+			}
+			this.state.move = 0
+			this.state.locked = 2
+			if(assets.customSongs){
+				assets.customSelected = this.selectedSong
+				localStorage["customSelected"] = this.selectedSong
+			}else if(!p2.session){
+				try{
+					localStorage["selectedSong"] = this.selectedSong
+				}catch(e){}
+			}
+			
+			if(this.songs[this.selectedSong].action !== "back"){
+				var cat = this.songs[this.selectedSong].originalCategory
+				this.drawBackground(cat)
+			}
+	}
+	
 	moveToSong(moveBy, fromP2){
 		var ctrl = false
 		if(moveBy == 7.1){
@@ -1469,6 +1559,22 @@ class SongSelect{
 		else{
 			var ms = this.getMS()
 		}
+		// Holding or mashing turns single steps into a jump rather than
+		// stepping once per input. YataiDON does the same at 50ms, and it
+		// is what makes a wheel this long navigable at all.
+		//
+		// Like its ctrl jump, a skip lands immediately: starting the clock
+		// before the animation window means redraw finds it already
+		// finished, so the wheel snaps instead of sliding ten boxes. That
+		// is what YataiDON's snap argument does.
+		var now = this.getMS()
+		if(!ctrl && Math.abs(moveBy) === 1 && now - (this.lastMoveAt || 0) <= this.songSelecting.skipWindow){
+			moveBy *= this.songSelecting.skipBy
+			ctrl = true
+			ms = now - 799
+		}
+		this.lastMoveAt = now
+		
 		if(p2.session && !fromP2){
 			if(!this.state.selLock && ms > this.state.moveMS + 800){
 				this.state.selLock = true
@@ -1476,7 +1582,16 @@ class SongSelect{
 					song: this.mod(this.songs.length, this.selectedSong + moveBy)
 				})
 			}
-		}else if(this.state.locked !== 1 || fromP2){
+		}else{
+			// Input arriving mid-slide used to be discarded, so holding a
+			// direction or mashing it produced a stutter of dropped
+			// presses. Commit the move already in flight instead and start
+			// the new one from a settled wheel, which reads as continuous
+			// motion. It also stops a move from the peer overwriting one
+			// that had not landed yet, which would have desynced.
+			if(this.state.locked === 1 && this.state.move){
+				this.applyPendingMove()
+			}
 			if(this.songs[this.selectedSong].courses && !this.songs[this.selectedSong].unloaded && (this.state.locked === 0 || fromP2)){
 				this.state.moveMS = ms
 			}else{
@@ -2102,74 +2217,7 @@ class SongSelect{
 			var elapsed = ms - this.state.moveMS
 			
 			if(this.state.catJump || (this.state.move && ms > this.state.moveMS + resize2 - scrollDelay)){
-				var isJump = this.state.catJump
-				var isSkip = this.state.skip
-				var previousSelectedSong = this.selectedSong
-				
-				if(!isJump){
-					if(!isSkip){
-						this.playSound("se_ka", 0, this.lastMoveBy)
-					}
-					this.selectedSong = this.mod(this.songs.length, this.selectedSong + this.state.move)
-				}else{
-					var currentCat = this.songs[this.selectedSong].category
-					var currentIdx = this.mod(this.songs.length, this.selectedSong)
-
-					if(this.state.move > 0){
-						var nextSong = this.songs.find(song => this.mod(this.songs.length, this.songs.indexOf(song)) > currentIdx && song.category !== currentCat && song.canJump)
-						if(!nextSong){
-							nextSong = this.songs[0]
-						}
-					}else{
-						var isFirstInCat = this.songs.findIndex(song => song.category === currentCat) == this.selectedSong
-						if(!isFirstInCat){
-							var nextSong = this.songs.find(song => this.mod(this.songs.length, this.songs.indexOf(song)) < currentIdx && song.category === currentCat && song.canJump)
-						}else{
-							var idx = this.songs.length - 1
-							var nextSong
-							var lastCat
-							for(;idx>=0;idx--){
-								if(this.songs[idx].category !== lastCat && this.songs[idx].action !== "back"){
-									lastCat = this.songs[idx].category
-									if(nextSong){
-										break
-									}
-								}
-								if(lastCat !== currentCat && idx < currentIdx){
-									nextSong = idx
-								}
-							}
-							nextSong = this.songs[nextSong]
-						}
-
-						if(!nextSong){
-							var rev = [...this.songs].reverse()
-							nextSong = rev.find(song => song.canJump)
-						}
-					}
-
-					this.selectedSong = this.songs.indexOf(nextSong)
-					this.state.catJump = false
-				}
-
-				if(previousSelectedSong !== this.selectedSong){
-					pageEvents.send("song-select-move", this.songs[this.selectedSong])
-				}
-				this.state.move = 0
-				this.state.locked = 2
-				if(assets.customSongs){
-					assets.customSelected = this.selectedSong
-					localStorage["customSelected"] = this.selectedSong
-				}else if(!p2.session){
-					try{
-						localStorage["selectedSong"] = this.selectedSong
-					}catch(e){}
-				}
-				
-				if(this.songs[this.selectedSong].action !== "back"){
-					var cat = this.songs[this.selectedSong].originalCategory
-					this.drawBackground(cat)
-				}
+				this.applyPendingMove()
 			}
 			if(this.state.moveMS && ms < this.state.moveMS + changeSpeed){
 				xOffset = Math.min(scroll, Math.max(0, elapsed - resize - scrollDelay)) / scroll * (this.songAsset.width + this.songAsset.marginLeft)

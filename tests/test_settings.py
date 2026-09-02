@@ -92,13 +92,22 @@ def test_song_select_speed_persists_and_is_applied(game):
     game.load()
     assert game.setting("songSelectSpeed") == 4, "value did not survive a reload"
 
-    # The wheel reads the setting when SongSelect is constructed, as
-    # 400 / speed, so a higher setting means a shorter step.
-    applied = game.page.evaluate(
-        "() => { const s = new SongSelect(false, true); "
-        "const v = s.songSelecting.speed; s.clean(); return v }"
-    )
-    assert applied == 100, f"expected 400/4, got {applied}"
+    # The wheel reads the setting when SongSelect is constructed, so a
+    # higher setting means a shorter step.
+    def step_duration():
+        return game.page.evaluate(
+            "() => { const s = new SongSelect(false, true); "
+            "const v = s.songSelecting.speed; s.clean(); return v }"
+        )
+
+    at_four = step_duration()
+    game.page.evaluate("() => settings.setItem('songSelectSpeed', 2)")
+    at_two = step_duration()
+
+    assert at_four == pytest.approx(at_two / 2), \
+        f"the setting does not scale the step: 2x gave {at_two}, 4x gave {at_four}"
+    # The default is YataiDON's 166ms per step.
+    assert at_two == pytest.approx(166, abs=1), f"default step is {at_two}ms"
     assert game.errors == []
 
 
