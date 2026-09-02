@@ -99,3 +99,37 @@ def test_selecting_a_song_opens_difficulty_select(wheel):
     wheel.page.wait_for_function("() => __ss.state.screen === 'song'", timeout=5000)
     assert wheel.errors == []
 
+
+def test_search_is_usable_in_a_netplay_session(wheel):
+    """Selectable and drawn as selectable.
+
+    The guard in toSelectDifficulty and the three sites that grey entries
+    out in redraw used to carry their own copies of this condition and
+    disagreed about Search: step 1 fixed the guard, so it could be chosen
+    but still rendered greyed out. They share one definition now.
+    """
+    disabled = wheel.page.evaluate("""() => {
+        const real = p2.session
+        try {
+            p2.session = true
+            const by = {}
+            for (const action of ["random", "search", "settings", "about", "tutorial"]) {
+                const song = __ss.songs.find(s => s.action === action)
+                if (song) by[action] = __ss.entryDisabledInSession(song)
+            }
+            by.aSong = __ss.entryDisabledInSession(__ss.songs[0])
+            return by
+        } finally { p2.session = real }
+    }""")
+    assert disabled["search"] is False, "Search still renders as disabled in a session"
+    assert disabled["random"] is False
+    assert disabled["aSong"] is False, "an ordinary song must stay selectable"
+    for action in ("settings", "about", "tutorial"):
+        if action in disabled:
+            assert disabled[action] is True, f"{action} should stay disabled in a session"
+
+
+def test_nothing_is_disabled_outside_a_session(wheel):
+    any_disabled = wheel.page.evaluate(
+        "() => __ss.songs.some(s => __ss.entryDisabledInSession(s))")
+    assert any_disabled is False

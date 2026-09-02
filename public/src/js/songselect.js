@@ -1614,14 +1614,22 @@ class SongSelect{
 		}
 	}
 	
+	// Which course-less entries cannot be used during a netplay session.
+	// The guard below and the three sites that grey entries out in redraw
+	// have to agree: they disagreed before, which left Search selectable
+	// but drawn as though it were not.
+	//
+	// Random and Search are both safe in a session -- each ends up calling
+	// toSelectDifficulty, which sends "songsel" to the peer exactly as a
+	// normal selection does.
+	entryDisabledInSession(song){
+		return !!(p2.session && song.action
+			&& song.action !== "random" && song.action !== "search")
+	}
+	
 	toSelectDifficulty(fromP2){
 		var currentSong = this.songs[this.selectedSong]
-		// Course-less entries fall through to the else branch, which does
-		// nothing for them during netplay, so Search was unreachable in a
-		// session. Searching is safe: searchProceed sets the index and
-		// calls back into here, which sends "songsel" to the peer exactly
-		// as a normal selection does.
-		if(p2.session && !fromP2 && currentSong.action !== "random" && currentSong.action !== "search"){
+		if(p2.session && !fromP2 && !this.entryDisabledInSession(currentSong)){
 			if(this.songs[this.selectedSong].courses){
 				if(!this.state.selLock){
 					this.state.selLock = true
@@ -2318,7 +2326,7 @@ class SongSelect{
 					y: songTop,
 					song: this.songs[index],
 					highlight: highlight,
-					disabled: p2.session && this.songs[index].action && this.songs[index].action !== "random"
+					disabled: this.entryDisabledInSession(this.songs[index])
 				})
 			}
 			var startFrom
@@ -2343,7 +2351,7 @@ class SongSelect{
 					y: songTop,
 					song: this.songs[index],
 					highlight: highlight,
-					disabled: p2.session && this.songs[index].action && this.songs[index].action !== "random"
+					disabled: this.entryDisabledInSession(this.songs[index])
 				})
 			}
 		}
@@ -2401,7 +2409,7 @@ class SongSelect{
 			animateMS: Math.max(this.state.moveMS, this.state.mouseMoveMS),
 			cached: selectedWidth === this.songAsset.fullWidth ? 3 : (selectedWidth === this.songAsset.selectedWidth ? 2 : (selectedWidth === this.songAsset.width ? 1 : 0)),
 			frameCache: this.songFrameCache,
-			disabled: p2.session && currentSong.action && currentSong.action !== "random",
+			disabled: this.entryDisabledInSession(currentSong),
 			innerContent: (x, y, w, h) => {
 				ctx.strokeStyle = "#000"
 				if(screen === "title" || screen === "titleFadeIn" || screen === "song"){
