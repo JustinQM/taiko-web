@@ -41,6 +41,13 @@ REDIS = {
 # Secret key used for sessions.
 SECRET_KEY = 'change-me'
 
+# Set both to False when serving over plain HTTP, e.g. on a private
+# network behind a reverse proxy that does not terminate TLS. Leaving them
+# True over HTTP makes the browser drop the session cookie, and
+# registration then fails with "Security token expired".
+SESSION_COOKIE_SECURE = True
+WTF_CSRF_SSL_STRICT = True
+
 # Git repository base URL.
 URL = 'https://github.com/bui/taiko-web/'
 

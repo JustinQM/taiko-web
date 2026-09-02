@@ -42,7 +42,17 @@ client = MongoClient(host=take_config('MONGO', required=True)['host'])
 app.secret_key = take_config('SECRET_KEY') or 'change-me'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
+
+# Secure cookies require HTTPS. A deployment served over plain HTTP on a
+# private network has its session cookie dropped by the browser, which
+# breaks CSRF validation and makes registration fail with "Security token
+# expired". Both default to the safe value; take_config returns None when
+# the option is absent, so the default has to be explicit rather than
+# relying on the fallback.
+session_cookie_secure = take_config('SESSION_COOKIE_SECURE')
+app.config['SESSION_COOKIE_SECURE'] = True if session_cookie_secure is None else bool(session_cookie_secure)
+csrf_ssl_strict = take_config('WTF_CSRF_SSL_STRICT')
+app.config['WTF_CSRF_SSL_STRICT'] = True if csrf_ssl_strict is None else bool(csrf_ssl_strict)
 app.config['SESSION_TYPE'] = 'redis'
 redis_config = take_config('REDIS', required=True)
 app.config['SESSION_REDIS'] = Redis(

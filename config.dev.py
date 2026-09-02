@@ -23,6 +23,12 @@ REDIS = {
 }
 
 SECRET_KEY = 'local-development-only'
+
+# The stack is plain HTTP on localhost, mirroring the production
+# deployment. Without these the browser drops the session cookie and
+# registration fails with "Security token expired".
+SESSION_COOKIE_SECURE = False
+WTF_CSRF_SSL_STRICT = False
 URL = 'https://github.com/JustinQM/taiko-web/'
 
 GOOGLE_CREDENTIALS = {
