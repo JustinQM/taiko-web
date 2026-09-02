@@ -124,13 +124,6 @@ class SongSelect{
 			scoreStorage.scoreSaveFailed = true
 		}
 		
-		var showCustom = false
-		if(gameConfig.google_credentials.gdrive_enabled){
-			showCustom = true
-		}else if("webkitdirectory" in HTMLInputElement.prototype && !(/Android|iPhone|iPad/.test(navigator.userAgent))){
-			showCustom = true
-		}
-		
 		// The navigator owns what is in the wheel; this.songs is its current
 		// listing. Today that is one flat array of everything, exactly as it
 		// was built here before.
@@ -139,8 +132,7 @@ class SongSelect{
 			skin: this.songSkin,
 			addSong: song => this.addSong(song),
 			updateSearchText: song => this.updateSongSearchText(song),
-			showTutorial: !touchEnabled,
-			showCustomSongs: showCustom
+			showTutorial: !touchEnabled
 		})
 		this.songs = this.navigator.items
 		

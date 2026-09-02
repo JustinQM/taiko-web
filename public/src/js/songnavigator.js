@@ -254,14 +254,6 @@ class SongNavigator{
 			action: "settings",
 			category: strings.gameSettings
 		})
-		if(config.showCustomSongs){
-			items.push({
-				title: assets.customSongs ? strings.customSongs.default : strings.customSongs.title,
-				skin: skin.customSongs,
-				action: "customSongs",
-				category: assets.customSongs ? strings.customSongs.default : strings.customSongs.title
-			})
-		}
 		if(plugins.hasSettings()){
 			items.push({
 				title: strings.plugins.title,

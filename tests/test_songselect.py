@@ -153,7 +153,7 @@ def test_genre_order_matches_the_old_category_order(wheel):
     assert shape["genres"][0] == "Pop"
     assert shape["genres"][-1] == "創作譜面"
     assert shape["actions"] == ["random", "search", "tutorial", "about",
-                                "settings", "customSongs"]
+                                "settings"]
 
 # What toSelectDifficulty actually does with each kind of entry during a
 # session, rather than what the predicate returns. Testing only the
