@@ -92,6 +92,7 @@ var settings
 var scoreStorage
 var favorites
 var recentlyPlayed
+var highscores
 var account = {}
 var gpicker
 var db

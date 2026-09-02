@@ -3213,8 +3213,12 @@ class SongSelect{
 					this.selectable.style.display = ""
 					this.selectableText = currentSong.title
 				}
-				if(!songSel && this.state.optionMenuOpen){
-					this.drawOptionsMenu(ctx)
+				if(!songSel){
+					// After the panel, since it sits inside it.
+					this.drawHighscores(ctx)
+					if(this.state.optionMenuOpen){
+						this.drawOptionsMenu(ctx)
+					}
 				}
 			}
 		})
@@ -3580,6 +3584,109 @@ class SongSelect{
 		}
 	}
 
+	/*
+	 * The top scores for the difficulty the cursor is on, under the
+	 * difficulty panel.
+	 *
+	 * Drawn where the game draws rather than as a panel over the top of
+	 * it, and follows the cursor between courses, which is the thing the
+	 * website cannot do. The website is still where the rest lives.
+	 *
+	 * Everything about it is optional: no service, no scores, or a course
+	 * nobody has played all draw an empty board rather than an error.
+	 */
+	drawHighscores(ctx){
+		if(typeof highscores === "undefined" || !highscores){
+			return
+		}
+		var song = this.songs[this.selectedSong]
+		if(!song || !song.courses || !song.id){
+			return
+		}
+		var diffIndex = this.selectedDiff - this.diffOptions.length
+		if(diffIndex < 0){
+			return
+		}
+		if(diffIndex === 3 && this.state.ura){
+			diffIndex = 4
+		}
+		var board = highscores.board(song.id, this.difficultyId[diffIndex])
+		
+		// Inside the difficulty panel, under the option buttons. The
+		// canvas is 720 tall but the nameplate sits over everything below
+		// about 595, and the panel itself ends around 555, so there is no
+		// room beneath it -- this is the free yellow to the left of the
+		// courses.
+		var x = 222
+		var y = 440
+		var w = 322
+		var h = 104
+		
+		ctx.save()
+		ctx.globalAlpha = 0.82
+		this.draw.roundedRect({ctx: ctx, x: x, y: y, w: w, h: h, radius: 10})
+		ctx.fillStyle = "#1b1622"
+		ctx.fill()
+		ctx.globalAlpha = 1
+		ctx.lineWidth = 3
+		ctx.strokeStyle = board && board.color ? board.color : "#4b4059"
+		ctx.stroke()
+		
+		ctx.textBaseline = "middle"
+		ctx.font = this.draw.bold(this.font) + "16px " + this.font
+		ctx.fillStyle = "#897e9b"
+		ctx.textAlign = "left"
+		ctx.fillText(strings.highscores.title, x + 14, y + 17)
+		
+		var rows = board && board.rows ? board.rows.slice(0, 3) : []
+		if(!rows.length){
+			ctx.fillStyle = "#bcb2ca"
+			ctx.textAlign = "center"
+			ctx.font = this.draw.bold(this.font) + "18px " + this.font
+			ctx.fillText(
+				board ? strings.highscores.empty : strings.highscores.loading,
+				x + w / 2, y + h / 2 + 10)
+			ctx.restore()
+			return
+		}
+		
+		var rowH = 26
+		var top = y + 28
+		for(var i = 0; i < rows.length; i++){
+			var row = rows[i]
+			var ry = top + i * rowH + rowH / 2
+			ctx.font = this.draw.bold(this.font) + "18px " + this.font
+			ctx.textAlign = "right"
+			ctx.fillStyle = i === 0 ? "#ffdb2c" : "#897e9b"
+			ctx.fillText(row.rank + ".", x + 30, ry)
+			
+			if(row.crown){
+				this.draw.crown({
+					ctx: ctx,
+					x: x + 48,
+					y: ry,
+					scale: 0.17,
+					type: row.crown,
+					ratio: this.ratio / this.pixelRatio
+				})
+			}
+			
+			ctx.textAlign = "left"
+			ctx.fillStyle = "#f4f0f8"
+			// Trimmed rather than wrapped: the column is fixed and a long
+			// name should not push the score off the end of the row.
+			var name = row.user
+			while(name.length > 3 && ctx.measureText(name).width > 150){
+				name = name.slice(0, -1)
+			}
+			ctx.fillText(name === row.user ? name : name + "\u2026", x + 64, ry)
+			
+			ctx.textAlign = "right"
+			ctx.fillText(row.points.toLocaleString(strings.intl), x + w - 14, ry)
+		}
+		ctx.restore()
+	}
+	
 	drawBackground(cat){
 		if(this.songSkin[cat] && this.songSkin[cat].bg_img){
 			let filename = this.songSkin[cat].bg_img.slice(0, this.songSkin[cat].bg_img.lastIndexOf("."))
