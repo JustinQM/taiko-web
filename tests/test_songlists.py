@@ -58,7 +58,14 @@ def test_the_folder_lists_what_was_favourited(wheel):
     assert wheel.errors == []
 
 
-def test_the_folder_reflects_changes_made_while_open(wheel):
+def test_unfavouriting_inside_the_folder_leaves_the_listing_alone(wheel):
+    """Removing the song being looked at must not pull it out from under
+    the cursor. Rebuilding the listing there moved the selection somewhere
+    unasked for, and with one favourite left it pointed past the end.
+
+    The change applies on the way back in, which is when a collection
+    resolves what is in it.
+    """
     ids = song_ids(wheel)
     wheel.page.evaluate("ids => ids.forEach(id => favorites.toggle(id))", ids)
     index = wheel.page.evaluate(
@@ -66,10 +73,42 @@ def test_the_folder_reflects_changes_made_while_open(wheel):
     wheel.enter_folder(index)
 
     wheel.select_index(1)
+    song = wheel.page.evaluate("() => __ss.songs[1].id")
     wheel.page.evaluate("() => __ss.toggleFavorite()")
-    remaining = wheel.page.evaluate("() => __ss.songs.slice(1).map(s => s.id)")
-    assert len(remaining) == len(ids) - 1
-    assert wheel.page.evaluate("() => __ss.selectedSong < __ss.songs.length") is True
+
+    assert wheel.page.evaluate("id => favorites.has(id)", song) is False
+    still_there = wheel.page.evaluate("() => __ss.songs.slice(1).map(s => s.id)")
+    assert song in still_there, "the song vanished from under the cursor"
+    assert wheel.wheel()["selected"] == 1
+    assert wheel.errors == []
+
+    wheel.leave_folder()
+    wheel.enter_folder(index)
+    after = wheel.page.evaluate("() => __ss.songs.slice(1).map(s => s.id)")
+    assert song not in after, "it should be gone once the folder is reopened"
+    assert len(after) == len(ids) - 1
+
+
+def test_unfavouriting_the_last_one_does_not_strand_the_cursor(wheel):
+    """This softlocked: the listing became just a back box while the
+    cursor was still on a song."""
+    ids = song_ids(wheel)
+    wheel.page.evaluate("id => favorites.toggle(id)", ids[0])
+    index = wheel.page.evaluate(
+        "() => __ss.navigator.items.findIndex(i => i.folder && i.folder.id === 'collection:favorites')")
+    wheel.enter_folder(index)
+    wheel.select_index(1)
+    wheel.page.evaluate("() => __ss.toggleFavorite()")
+
+    assert wheel.wheel()["selected"] == 1
+    wheel.move(1)
+    wheel.move(-1)
+    assert wheel.errors == []
+
+    # and the way out still works
+    wheel.select_index(0)
+    wheel.page.evaluate("() => __ss.toSelectDifficulty()")
+    wheel.page.wait_for_function("() => __ss.navigator.path.length === 0", timeout=5000)
 
 
 def test_favourites_survive_a_reload_when_logged_out(wheel):

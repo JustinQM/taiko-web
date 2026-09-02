@@ -275,18 +275,6 @@ class SongNavigator{
 	}
 	
 	/*
-	 * Rebuild the folder we are standing in, for when its contents can
-	 * change while it is open.
-	 */
-	refreshFolder(){
-		var folder = this.path[this.path.length - 1]
-		if(folder){
-			this.items = this.buildFolder(folder)
-		}
-		return this.items
-	}
-	
-	/*
 	 * Resolve a SongList to wheel entries, keeping its order -- newest
 	 * first, which is how both the server and the local copy store them.
 	 * A song that has since gone from the library is dropped rather than

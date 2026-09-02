@@ -27,35 +27,29 @@ def wheel(game):
     return wheel
 
 
-def test_the_slide_takes_most_of_the_step(wheel):
-    """It used to be a fifth of it, with the rest spent resizing a box.
-
-    scroll is the window the wheel actually travels in; the remainder is
-    the selected box shrinking before and growing after.
-    """
-    share = wheel.page.evaluate("""() => {
-        const s = __ss.songSelecting
-        const changeSpeed = s.speed
-        const resize = changeSpeed * s.resize
-        const scrollDelay = changeSpeed * s.scrollDelay
-        const scroll = (changeSpeed - resize) - resize - scrollDelay * 2
-        return scroll / changeSpeed
-    }""")
-    assert share > 0.5, f"the wheel only travels for {share:.0%} of a step"
+def test_the_wheel_travels_for_the_whole_step(wheel):
+    """It used to travel for a fifth of it, spending the rest resizing a
+    box, which is what made it read as snapping between positions."""
+    curve = wheel.page.evaluate(
+        "() => [0, 0.5, 0.99, 1].map(f => __ss.slideOffset(f * __ss.songSelecting.speed))")
+    assert curve[0] == 1, "the wheel does not start a whole box behind"
+    assert curve[3] == 0, "the wheel has not arrived at the end of the step"
+    assert 0 < curve[2] < 0.01, f"it stopped early: {curve[2]} left at 99%"
 
 
 def test_the_slide_decelerates(wheel):
-    """Ease-out cubic: over halfway by the time a third of it has passed.
+    """Ease-out: most of the distance is covered early and it settles.
 
-    A linear slide would be exactly a third of the way at that point,
-    which is what it used to do.
+    Driven through the real function rather than recomputed here, because
+    an earlier version of this test recomputed the curve and passed while
+    the wheel was still sliding linearly.
     """
-    curve = wheel.page.evaluate(
-        "() => [0.25, 0.5, 0.75].map(t => 1 - Math.pow(1 - t, 3))")
-    linear = [0.25, 0.5, 0.75]
-    assert all(c > l for c, l in zip(curve, linear)), \
-        f"the slide is not ahead of linear: {curve}"
-    assert curve[1] > 0.8, f"halfway through, only {curve[1]:.0%} travelled"
+    remaining = wheel.page.evaluate(
+        "() => [0.25, 0.5, 0.75].map(f => __ss.slideOffset(f * __ss.songSelecting.speed))")
+    travelled = [1 - r for r in remaining]
+    assert all(t > f for t, f in zip(travelled, [0.25, 0.5, 0.75])), \
+        f"the slide is not ahead of linear: {travelled}"
+    assert travelled[1] > 0.8, f"halfway through, only {travelled[1]:.0%} travelled"
 
 
 def test_input_during_a_slide_is_not_dropped(wheel):
@@ -102,14 +96,22 @@ def test_a_jump_lands_immediately(wheel):
         wheel.page.wait_for_timeout(wait)
         return wheel.page.evaluate("() => __ss.selectedSong") - start
 
-    snapped = moved_after(
-        "() => { __ss.lastMoveAt = __ss.getMS(); __ss.moveToSong(1) }", 40)
-    slid = moved_after("() => { __ss.lastMoveAt = 0; __ss.moveToSong(10) }", 40)
+    snapped = wheel.page.evaluate("""() => {
+        __ss.lastMoveAt = __ss.getMS()
+        __ss.moveToSong(1)
+        return {slide: __ss.state.slide, locked: __ss.state.locked}
+    }""")
+    wheel.settle()
+    stepped = wheel.page.evaluate("""() => {
+        __ss.lastMoveAt = 0
+        __ss.moveToSong(1)
+        return {slide: __ss.state.slide, locked: __ss.state.locked}
+    }""")
+    wheel.settle()
 
-    assert snapped == 10, f"the jump had not landed after 40ms ({snapped})"
-    assert slid == 0, \
-        f"an ordinary ten-step move also landed instantly ({slid}); " \
-        "this test no longer distinguishes snapping from sliding"
+    assert snapped["slide"] == 0, "the jump is sliding rather than landing"
+    assert snapped["locked"] == 0
+    assert stepped["slide"] == 1, "an ordinary step should slide"
 
 
 def test_a_lone_input_is_still_a_single_step(wheel):
@@ -181,3 +183,72 @@ def test_the_step_sound_thins_out_when_moving_quickly(wheel):
         } finally { __ss.playSound = real }
     }""")
     assert played <= 3, f"360ms of holding played {played} step sounds"
+
+
+def test_the_cursor_moves_on_the_press(wheel):
+    """YataiDON changes its index at once and lets the boxes catch up.
+
+    Ours flipped it part way through the slide, which is why the sound and
+    the box opening trailed the press instead of landing with it.
+    """
+    wheel.settle()
+    moved = wheel.page.evaluate("""() => {
+        const from = __ss.selectedSong
+        __ss.moveToSong(1)
+        return __ss.selectedSong - from   // read before any frame has run
+    }""")
+    assert moved == 1, "the cursor had not moved by the time the press returned"
+
+
+def test_the_step_sound_plays_on_the_press(wheel):
+    """It used to play when the index flipped, most of a step later."""
+    wheel.settle()
+    when = wheel.page.evaluate("""() => {
+        const real = __ss.playSound.bind(__ss)
+        let heard = null
+        __ss.playSound = (id, ...rest) => {
+            if (id === "se_ka" && heard === null) heard = __ss.selectedSong
+            return real(id, ...rest)
+        }
+        try {
+            __ss.lastMoveSound = 0
+            const before = __ss.selectedSong
+            __ss.moveToSong(1)
+            return {heard: heard !== null, sameTurn: __ss.selectedSong !== before}
+        } finally { __ss.playSound = real }
+    }""")
+    assert when["heard"] is True, "no step sound was played on the press"
+    assert when["sameTurn"] is True
+
+
+def test_the_box_opens_after_the_slide_and_outlasts_it(wheel):
+    """It is its own animation rather than a slice of the step, so it can
+    overlap whatever comes next -- squeezing it inside the step is what
+    made the wheel look like it was snapping between positions."""
+    timing = wheel.page.evaluate("""() => {
+        const s = __ss.songSelecting
+        __ss.moveToSong(1)
+        return {
+            delay: __ss.state.expandMS - __ss.state.moveMS,
+            duration: s.expandDuration,
+            slide: s.speed,
+        }
+    }""")
+    wheel.settle()
+    assert timing["delay"] == 133
+    assert timing["duration"] == 233
+    assert timing["delay"] + timing["duration"] > timing["slide"], \
+        "the box finishes opening before the slide ends"
+
+
+def test_a_category_jump_lands_rather_than_sliding(wheel):
+    """It crosses a whole category; sliding the whole way is a blur."""
+    wheel.leave_folder()
+    wheel.settle()
+    state = wheel.page.evaluate("""() => {
+        __ss.categoryJump(1)
+        return {slide: __ss.state.slide, locked: __ss.state.locked}
+    }""")
+    assert state["slide"] == 0
+    assert state["locked"] == 0
+    assert wheel.errors == []

@@ -286,21 +286,21 @@ class SongSelect{
 			waitPreview: 0,
 			skip: false
 		}
-		// Modelled on YataiDON, which slides every box on an ease-out
-		// cubic over 166ms and expands the selected one separately.
+		// Modelled on YataiDON. Its wheel does three things on an input:
+		// moves its index at once, slides every box towards where that
+		// index now puts it on an ease-out cubic over 166ms, and opens the
+		// newly selected box over 233ms after a 133ms delay. The opening
+		// is its own animation, so it outlasts the slide and overlaps
+		// whatever comes next.
+		//
+		// Ours used to divide one budget into shrink, slide and grow, and
+		// flip the index part way through. The slide was a fifth of the
+		// step and the sound landed with the flip rather than the press.
 		//
 		// The base is divided rather than replaced so the setting still
-		// reads as a multiplier, and 333 over the default 2x is that
-		// 166ms. The ratios matter more than the total: at the old 0.3 and
-		// 0.1 the slide itself was only 0.2 of the step -- 40ms of a 200ms
-		// move -- and the rest was the selected box shrinking and growing,
-		// which is why the wheel read as snapping between positions rather
-		// than travelling between them. At 0.15 and 0.05 the slide is 0.6
-		// of the step and the resize happens around it.
+		// reads as a multiplier, and 1x is that 166ms.
 		this.songSelecting = {
 			speed: 166 / settings.getItem("songSelectSpeed"),
-			resize: 0.15,
-			scrollDelay: 0.05,
 			// A deliberate second press this soon after the first is a
 			// request to move further, and becomes a jump of skipBy that
 			// lands immediately. YataiDON uses the same window.
@@ -319,7 +319,11 @@ class SongSelect{
 			// The floor on how often the step sound plays, which is longer
 			// than a step: a held direction should be heard moving, not
 			// heard as a drone.
-			soundInterval: 220
+			soundInterval: 220,
+			// The selected box opening, which is its own animation rather
+			// than part of the step. YataiDON's numbers.
+			expandDelay: 133,
+			expandDuration: 233
 		}
 		
 		this.startPreview(true)
@@ -1495,27 +1499,34 @@ class SongSelect{
 		return null
 	}
 	
-	// Commit the move the wheel is part way through: advance the index,
-	// play the step sound and settle the selection. redraw calls this when
-	// the slide reaches the point the index flips, and moveToSong calls it
-	// when a new input arrives before that, so the new move starts from a
-	// settled wheel rather than being dropped.
-	applyPendingMove(){
-			var isJump = this.state.catJump
-			var isSkip = this.state.skip
+	/*
+	 * Move the cursor now, and report how far it went.
+	 *
+	 * YataiDON changes its index the moment an input arrives and lets the
+	 * boxes catch up: navigate() sets open_index and then set_positions
+	 * animates every box towards where it now belongs. The slide is a
+	 * visual offset that decays to nothing, not the thing that decides
+	 * where the cursor ends up.
+	 *
+	 * Ours used to flip the index part way through the slide, which is why
+	 * the step sound and the box opening trailed the press rather than
+	 * landing with it.
+	 */
+	/*
+	 * How much of the slide is still to go, from 1 at the press to 0 when
+	 * it has settled. Ease-out cubic, as YataiDON's move animation uses:
+	 * the wheel leaves immediately and eases into place.
+	 */
+	slideOffset(elapsed){
+		var progress = Math.min(1, Math.max(0, elapsed / this.songSelecting.speed))
+		return Math.pow(1 - progress, 3)
+	}
+	
+	applyMove(moveBy, isJump){
 			var previousSelectedSong = this.selectedSong
 			
 			if(!isJump){
-				// Every committed step used to click. Held, that is a step
-				// every repeat and the clicks run together into a drone,
-				// so they thin out once the wheel is moving quickly and
-				// the movement itself carries the feedback.
-				var sinceSound = this.getMS() - (this.lastMoveSound || 0)
-				if(!isSkip && sinceSound >= this.songSelecting.soundInterval){
-					this.lastMoveSound = this.getMS()
-					this.playSound("se_ka", 0, this.lastMoveBy)
-				}
-				this.selectedSong = this.mod(this.songs.length, this.selectedSong + this.state.move)
+				this.selectedSong = this.mod(this.songs.length, this.selectedSong + moveBy)
 			}else{
 				var currentCat = this.songs[this.selectedSong].category
 				var currentIdx = this.mod(this.songs.length, this.selectedSong)
@@ -1561,7 +1572,6 @@ class SongSelect{
 				pageEvents.send("song-select-move", this.songs[this.selectedSong])
 			}
 			this.state.move = 0
-			this.state.locked = 2
 			if(assets.customSongs){
 				assets.customSelected = this.selectedSong
 				localStorage["customSelected"] = this.selectedSong
@@ -1578,6 +1588,17 @@ class SongSelect{
 				var cat = this.songs[this.selectedSong].originalCategory
 				this.drawBackground(cat)
 			}
+			
+			// How far it actually went, the short way round, which is what
+			// the slide has to travel back over.
+			var delta = this.selectedSong - previousSelectedSong
+			var length = this.songs.length
+			if(delta > length / 2){
+				delta -= length
+			}else if(delta < -length / 2){
+				delta += length
+			}
+			return delta
 	}
 	
 	moveToSong(moveBy, fromP2, repeat){
@@ -1624,46 +1645,35 @@ class SongSelect{
 				})
 			}
 		}else{
-			// Input arriving mid-slide used to be discarded, so holding a
-			// direction or mashing it produced a stutter of dropped
-			// presses. Commit the move already in flight instead and start
-			// the new one from a settled wheel, which reads as continuous
-			// motion. It also stops a move from the peer overwriting one
-			// that had not landed yet, which would have desynced.
-			if(this.state.locked === 1 && this.state.move){
-				this.applyPendingMove()
-			}
-			if(this.songs[this.selectedSong].courses && !this.songs[this.selectedSong].unloaded && (this.state.locked === 0 || fromP2)){
-				this.state.moveMS = ms
-			}else{
-				this.state.moveMS = ms - this.songSelecting.speed * this.songSelecting.resize
-			}
-			this.state.move = moveBy
-			this.state.lastMove = moveBy
-			this.state.locked = 1
-			this.state.moveHover = null
-			if(ctrl){
-				this.state.skip = true
-			}else{
-				this.state.skip = false
-			}
-			var lastMoveMul = Math.pow(Math.abs(moveBy), 1 / 4)
-			var changeSpeed = this.songSelecting.speed * lastMoveMul
-			var resize = changeSpeed * this.songSelecting.resize / lastMoveMul
-			var scrollDelay = changeSpeed * this.songSelecting.scrollDelay
-			var resize2 = changeSpeed - resize
-			var scroll = resize2 - resize - scrollDelay * 2
-			
-			var soundsDelay = Math.abs((scroll + resize) / moveBy)
 			this.lastMoveBy = fromP2 ? fromP2.player : false
+			
+			// The sound goes with the press, not with the moment the slide
+			// happens to reach the next box. YataiDON plays its kat before
+			// calling navigate, and that is what makes the two feel like
+			// one event.
+			//
+			// Held, a click per step runs together into a drone, so they
+			// thin out and the movement itself carries the rest.
+			var sinceSound = now - (this.lastMoveSound || 0)
 			if(ctrl){
-				this.playSound("se_jump", 0, fromP2 ? fromP2.player : false)
+				this.lastMoveSound = now
+				this.playSound("se_jump", 0, this.lastMoveBy)
+			}else if(sinceSound >= this.songSelecting.soundInterval){
+				this.lastMoveSound = now
+				this.playSound("se_ka", 0, this.lastMoveBy)
 			}
-			else{
-				for(var i = 0; i < Math.abs(moveBy) - 1; i++){
-					this.playSound("se_ka", (resize + i * soundsDelay) / 1000, fromP2 ? fromP2.player : false)
-				}
-			}
+			
+			var moved = this.applyMove(moveBy, false)
+			// A jump lands rather than sliding ten boxes past, as does a
+			// long move from the peer.
+			var snap = ctrl || Math.abs(moved) > 3
+			this.state.slide = snap ? 0 : moved
+			this.state.lastMove = moveBy
+			this.state.moveMS = ms
+			this.state.expandMS = ms + this.songSelecting.expandDelay
+			this.state.locked = snap ? 0 : 1
+			this.state.moveHover = null
+			this.state.skip = !!ctrl
 			ctrl = false
 			this.pointer(false)
 		}
@@ -1685,13 +1695,19 @@ class SongSelect{
 					move: moveBy
 				})
 			}
-		}else if(this.state.locked !== 1 || fromP2){
-			this.state.catJump = true
-			this.state.move = moveBy;
-			this.state.locked = 1
-			
+		}else{
 			this.endPreview()
 			this.playSound("se_jump", 0, fromP2 ? fromP2.player : false)
+			this.state.move = moveBy
+			this.applyMove(moveBy, true)
+			// A jump crosses a whole category, so it lands rather than
+			// sliding the whole way there.
+			this.state.slide = 0
+			this.state.moveMS = this.getMS()
+			this.state.expandMS = this.state.moveMS + this.songSelecting.expandDelay
+			this.state.locked = 0
+			this.state.moveHover = null
+			this.lastMoveAt = this.getMS()
 		}
 	}
 
@@ -1857,15 +1873,13 @@ class SongSelect{
 		var added = favorites.toggle(song.id)
 		this.playSound(added ? "se_don" : "se_cancel")
 		
-		// Standing inside the favourites folder while removing something
-		// from it would leave the wheel showing a song that is no longer
-		// in the listing.
-		var folder = this.navigator.path[this.navigator.path.length - 1]
-		if(folder && folder.id === "collection:favorites"){
-			this.songs = this.navigator.refreshFolder()
-			this.selectedSong = this.mod(this.songs.length, this.selectedSong)
-			this.state.move = 0
-		}
+		// The listing is deliberately left alone, including inside the
+		// favourites folder. Rebuilding it under the cursor pulled the
+		// song being looked at out from under it, which at best moved the
+		// selection somewhere unasked for and at worst left the wheel
+		// pointing past the end of a listing that had just got shorter.
+		// A collection resolves its contents when it is opened, so
+		// leaving and coming back is what applies the change.
 		return added
 	}
 	
@@ -2264,10 +2278,8 @@ class SongSelect{
 		}
 
 		if(this.wheelScrolls !== 0 && !this.state.locked && ms >= this.wheelTimer + 20) {
-			if(p2.session){
-				this.moveToSong(this.wheelScrolls)
-			}else{
-				this.state.move = this.wheelScrolls
+			this.moveToSong(this.wheelScrolls)
+			if(!p2.session){
 				this.state.waitPreview = ms + 400
 				this.endPreview()
 			}
@@ -2392,35 +2404,42 @@ class SongSelect{
 				selectedWidth = this.songAsset.selectedWidth
 			}
 			
-			var lastMoveMul = Math.pow(Math.abs(this.state.lastMove || 0), 1 / 4)
-			var changeSpeed = this.songSelecting.speed * lastMoveMul
-			var resize = changeSpeed * (lastMoveMul === 0 ? 0 : this.songSelecting.resize / lastMoveMul)
-			var scrollDelay = changeSpeed * this.songSelecting.scrollDelay
-			var resize2 = changeSpeed - resize
-			var scroll = resize2 - resize - scrollDelay * 2
+			var changeSpeed = this.songSelecting.speed
 			var elapsed = ms - this.state.moveMS
 			
-			if(this.state.catJump || (this.state.move && ms > this.state.moveMS + resize2 - scrollDelay)){
-				this.applyPendingMove()
-			}
-			if(this.state.moveMS && ms < this.state.moveMS + changeSpeed){
-				xOffset = Math.min(scroll, Math.max(0, elapsed - resize - scrollDelay)) / scroll * (this.songAsset.width + this.songAsset.marginLeft)
-				xOffset *= -this.state.move
-				if(elapsed < resize){
-					selectedWidth = this.songAsset.width + (((resize - elapsed) / resize) * (selectedWidth - this.songAsset.width))
-				}else if(elapsed > resize2){
-					this.playBgm(!this.songs[this.selectedSong].courses)
-					this.state.locked = 1
-					selectedWidth = this.songAsset.width + ((elapsed - resize2) / resize * (selectedWidth - this.songAsset.width))
-				}else{
-					songSelMoving = true
-					selectedWidth = this.songAsset.width
-				}
+			// The cursor has already moved; what is left is the wheel
+			// catching up to it. The offset starts a whole box behind and
+			// eases to nothing on a cubic, so it leaves at once and settles
+			// rather than travelling at a constant speed.
+			if(this.state.slide && elapsed < changeSpeed){
+				xOffset = this.slideOffset(elapsed) * this.state.slide
+					* (this.songAsset.width + this.songAsset.marginLeft)
+				songSelMoving = true
+				this.state.locked = 1
 			}else{
+				if(this.state.slide){
+					this.state.slide = 0
+				}
 				if(this.previewing !== "muted"){
 					this.playBgm(!this.songs[this.selectedSong].courses)
 				}
 				this.state.locked = 0
+			}
+			
+			// The selected box opening is its own animation rather than a
+			// slice of the step, so it outlasts the slide and overlaps
+			// whatever comes next -- YataiDON gives it 233ms after a 133ms
+			// delay against a 166ms slide. Squeezing it inside the step
+			// was what made the wheel read as snapping between positions.
+			if(this.state.expandMS){
+				var opening = (ms - this.state.expandMS) / this.songSelecting.expandDuration
+				if(opening < 1){
+					var opened = opening <= 0 ? 0 : 1 - Math.pow(1 - opening, 3)
+					selectedWidth = this.songAsset.width
+						+ opened * (selectedWidth - this.songAsset.width)
+				}else{
+					this.state.expandMS = 0
+				}
 			}
 		}else if(screen === "difficulty"){
 			var currentSong = this.songs[this.selectedSong]
