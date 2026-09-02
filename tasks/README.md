@@ -25,3 +25,10 @@ finished game to measure.
 01 comes first even though it is not a feature: the backgrounds are the
 largest thing ever added to the draw loop, and without a measurement
 taken before them there is nothing to compare against afterwards.
+
+## The sweep (12-18)
+
+The background flashed yellow and red, and the answer to why turned into
+a reread of YataiDON's whole background: how the art is imported, how the
+skin's animations work, and each of the four kinds of thing drawn out of
+them. These are that pass.
