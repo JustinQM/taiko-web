@@ -55,6 +55,15 @@ class Settings{
 					"drumSounds": true
 				}
 			},
+			songSelectSpeed: {
+				type: "number",
+				default: 2,
+				min: 0.25,
+				max: 10,
+				step: 25,
+				fixedPoint: 2,
+				format: "%sx"
+			},
 			easierBigNotes: {
 				type: "toggle",
 				default: false

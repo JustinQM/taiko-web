@@ -65,13 +65,25 @@ class Game:
         return self
 
     def rows(self):
-        """Every visible setting as {name, value}, in screen order."""
+        """Every visible setting as {name, value}, in screen order.
+
+        Number settings put their -/+ adjust buttons inside .setting-value,
+        so the buttons are stripped before reading the text; otherwise the
+        speed row reads as "2x-+".
+        """
         return self.page.eval_on_selector_all(
             ROWS,
-            """els => els.map(el => ({
-                name: (el.querySelector('.setting-name') || {}).textContent || '',
-                value: (el.querySelector('.setting-value') || {}).textContent || '',
-            }))""",
+            """els => els.map(el => {
+                const nameEl = el.querySelector('.setting-name')
+                const valueEl = el.querySelector('.setting-value')
+                let value = ''
+                if(valueEl){
+                    const clone = valueEl.cloneNode(true)
+                    clone.querySelectorAll('.latency-buttons').forEach(b => b.remove())
+                    value = clone.textContent
+                }
+                return {name: nameEl ? nameEl.textContent : '', value: value}
+            })""",
         )
 
     def row(self, name):

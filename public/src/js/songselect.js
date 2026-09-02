@@ -348,7 +348,9 @@ class SongSelect{
 			skip: false
 		}
 		this.songSelecting = {
-			speed: 400,
+			// Divided rather than replaced so the setting reads as a
+			// multiplier: 2x is twice as fast as upstream's default.
+			speed: 400 / settings.getItem("songSelectSpeed"),
 			resize: 0.3,
 			scrollDelay: 0.1
 		}

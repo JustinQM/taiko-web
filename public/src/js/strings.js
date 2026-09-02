@@ -1074,6 +1074,15 @@ var translations = {
 				ko: "북 소리"
 			}
 		},
+		songSelectSpeed: {
+			name: {
+				ja: "曲選択スクロール速度",
+				en: "Song Select Speed",
+				cn: "选曲滚动速度",
+				tw: "選曲捲動速度",
+				ko: "곡 선택 스크롤 속도"
+			}
+		},
 		easierBigNotes: {
 			name: {
 				ja: "簡単な大きな音符",

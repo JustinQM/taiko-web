@@ -69,3 +69,34 @@ def test_select_cycles_through_its_options(game):
     assert all(seen), f"a resolution step rendered an empty value: {seen}"
     assert len(set(seen)) > 1, f"value never changed: {seen}"
     assert game.errors == []
+
+
+def test_song_select_speed_is_a_number_setting(game):
+    """The scroll speed absorbed from the change-song-select-speed plugin.
+
+    A number setting is the case that used to throw during init, so this
+    checks the row renders, formats and persists rather than just that the
+    value exists.
+    """
+    game.open_settings()
+    row = game.row("Song Select Speed")
+    assert row["value"].strip().endswith("x"), f"unformatted: {row['value']!r}"
+    assert game.setting("songSelectSpeed") == 2, "default should be 2"
+    assert game.errors == []
+
+
+def test_song_select_speed_persists_and_is_applied(game):
+    game.open_settings()
+    game.page.evaluate("() => settings.setItem('songSelectSpeed', 4)")
+
+    game.load()
+    assert game.setting("songSelectSpeed") == 4, "value did not survive a reload"
+
+    # The wheel reads the setting when SongSelect is constructed, as
+    # 400 / speed, so a higher setting means a shorter step.
+    applied = game.page.evaluate(
+        "() => { const s = new SongSelect(false, true); "
+        "const v = s.songSelecting.speed; s.clean(); return v }"
+    )
+    assert applied == 100, f"expected 400/4, got {applied}"
+    assert game.errors == []
