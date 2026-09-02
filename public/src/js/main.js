@@ -91,6 +91,7 @@ var vectors
 var settings
 var scoreStorage
 var favorites
+var recentlyPlayed
 var account = {}
 var gpicker
 var db

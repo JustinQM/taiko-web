@@ -171,3 +171,58 @@ def test_toggling_twice_leaves_the_server_consistent(account):
     stored = account.page.evaluate(
         """async () => (await fetch("/api/playlists/favorites").then(r => r.json())).songs""")
     assert first not in stored, f"left behind on the server: {stored}"
+
+
+# ------------------------------------------------------- recently played
+
+def test_recently_played_folder_follows_favourites(wheel):
+    root = wheel.page.evaluate(
+        "() => __ss.navigator.items.map(i => (i.folder && i.folder.id) || i.action)")
+    assert root.index("collection:recent") == root.index("collection:favorites") + 1
+
+
+def test_recently_played_starts_empty(wheel):
+    assert wheel.page.evaluate("() => recentlyPlayed.songs") == []
+
+
+def test_playing_puts_a_song_at_the_front(wheel):
+    ids = song_ids(wheel)
+    wheel.page.evaluate("ids => ids.forEach(id => recentlyPlayed.set(id, true))", ids)
+    assert wheel.page.evaluate("() => recentlyPlayed.songs") == list(reversed(ids))
+
+
+def test_replaying_moves_it_back_to_the_front(wheel):
+    """Not duplicated: this is the difference between a play log and a
+    list you add to."""
+    ids = song_ids(wheel)
+    wheel.page.evaluate("ids => ids.forEach(id => recentlyPlayed.set(id, true))", ids)
+    wheel.page.evaluate("id => recentlyPlayed.set(id, true)", ids[0])
+    songs = wheel.page.evaluate("() => recentlyPlayed.songs")
+    assert songs[0] == ids[0]
+    assert len(songs) == len(ids), f"duplicated: {songs}"
+
+
+def test_recently_played_is_capped(wheel):
+    """It is written on every play, so it cannot grow without bound."""
+    kept = wheel.page.evaluate("""() => {
+        const all = __ss.navigator.songItems.slice(0, 80).map(s => s.id)
+        all.forEach(id => recentlyPlayed.set(id, true))
+        return {count: recentlyPlayed.songs.length, limit: recentlyPlayed.limit}
+    }""")
+    assert kept["count"] == kept["limit"] == 50
+
+
+def test_the_folder_lists_recent_songs_newest_first(wheel):
+    ids = song_ids(wheel)
+    wheel.page.evaluate("ids => ids.forEach(id => recentlyPlayed.set(id, true))", ids)
+    index = wheel.page.evaluate(
+        "() => __ss.navigator.items.findIndex(i => i.folder && i.folder.id === 'collection:recent')")
+    wheel.enter_folder(index)
+    listed = wheel.page.evaluate("() => __ss.songs.slice(1).map(s => s.id)")
+    assert listed == list(reversed(ids))
+    assert wheel.errors == []
+
+
+def test_nothing_is_backfilled(wheel):
+    """Scores that predate this get no date invented for them."""
+    assert wheel.page.evaluate("() => recentlyPlayed.songs.length") == 0

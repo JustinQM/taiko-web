@@ -1027,6 +1027,17 @@ class Scoresheet{
 			var hash = this.controller.selectedSong.hash
 			var difficulty = this.resultsObj.difficulty
 			var oldScore = scoreStorage.get(hash, difficulty, true)
+			// Recorded on every play, before the score comparison below:
+			// scoreStorage only writes when the score improved, and "what
+			// did I just play" has nothing to do with whether it was any
+			// good.
+			if(typeof recentlyPlayed !== "undefined" && recentlyPlayed && !this.multiplayer){
+				var playedSong = assets.songs.find(song => song.hash === hash)
+				if(playedSong){
+					recentlyPlayed.set(playedSong.id, true)
+				}
+			}
+			
 			var clearReached = this.controller.game.rules.clearReached(this.resultsObj.gauge)
 			var crown = ""
 			if(clearReached){

@@ -210,15 +210,23 @@ class SongNavigator{
 		return this.items
 	}
 	
-	favoriteSongs(){
-		if(typeof favorites === "undefined" || !favorites){
+	/*
+	 * Resolve a SongList to wheel entries, keeping its order -- newest
+	 * first, which is how both the server and the local copy store them.
+	 * A song that has since gone from the library is dropped rather than
+	 * leaving a hole.
+	 */
+	listSongs(list){
+		if(!list){
 			return []
 		}
-		// In the order they were favourited, newest first, which is the
-		// order the server keeps them in.
-		return favorites.songs
+		return list.songs
 			.map(id => this.songItems.find(song => song.id === id))
 			.filter(Boolean)
+	}
+	
+	favoriteSongs(){
+		return this.listSongs(typeof favorites !== "undefined" && favorites)
 	}
 	
 	folderId(item){
@@ -313,6 +321,12 @@ class SongNavigator{
 				title: strings.favorites.title,
 				skin: skin.favorites || skin.random,
 				songs: () => this.favoriteSongs()
+			}))
+			items.push(this.collectionFolder({
+				id: "collection:recent",
+				title: strings.recentlyPlayed.title,
+				skin: skin.recent || skin.tutorial,
+				songs: () => this.listSongs(typeof recentlyPlayed !== "undefined" && recentlyPlayed)
 			}))
 			items.push({
 				title: strings.randomSong,

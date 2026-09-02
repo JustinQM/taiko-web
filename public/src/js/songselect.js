@@ -28,6 +28,12 @@ class SongSelect{
 				border: ["#ffe7bd", "#c68229"],
 				outline: "#ad7723"
 			},
+			"recent": {
+				sort: 0,
+				background: "#2fb98a",
+				border: ["#8fe6c6", "#0e7d59"],
+				outline: "#0b6647"
+			},
 			"favorites": {
 				sort: 0,
 				background: "#ff9f40",

@@ -752,6 +752,11 @@ def route_api_account_remove():
 # user-created ones later is rows and screens rather than a migration.
 DEFAULT_PLAYLIST = 'favorites'
 
+# Recently played is a list like any other, but it is written on every
+# play rather than deliberately, so it is trimmed rather than growing
+# without bound.
+PLAYLIST_LIMITS = {'recent': 50}
+
 
 def playlist_songs(username, slug):
     playlist = db.playlists.find_one({'username': username, 'slug': slug})
@@ -782,10 +787,17 @@ def route_api_playlist_toggle():
     # An explicit value makes the call idempotent, which matters when two
     # tabs or a retried request would otherwise toggle twice.
     add = data['value'] if 'value' in data else song_id not in songs
-    if add and song_id not in songs:
-        # Newest first, as YataiDON writes its favourites list.
+    if add:
+        # Newest first, as YataiDON writes its lists. Re-adding something
+        # moves it back to the front rather than duplicating it, which is
+        # what makes this work for recently played.
+        if song_id in songs:
+            songs.remove(song_id)
         songs.insert(0, song_id)
-    elif not add and song_id in songs:
+        limit = PLAYLIST_LIMITS.get(slug)
+        if limit:
+            del songs[limit:]
+    elif song_id in songs:
         songs.remove(song_id)
 
     db.playlists.update_one(

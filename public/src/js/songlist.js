@@ -1,21 +1,23 @@
 /*
- * Per-user song lists, and the favourites list in particular.
+ * A named per-user list of songs.
  *
- * Mirrors scoreStorage: the server holds them when someone is logged in
- * and localStorage does when they are not, with no merging between the
- * two -- signing in shows the account's list, signing out shows the
- * browser's again.
+ * Two exist: favourites, which the player adds to deliberately, and
+ * recently played, which is written on every play and trimmed by the
+ * server. They are the same thing with a different slug, and a
+ * user-created playlist later would be a third with a name attached.
  *
- * The server stores these as playlists keyed by a slug, so user-created
- * lists later are more rows and a screen rather than a migration. Only
- * favourites has a way into it today.
+ * Mirrors scoreStorage: the server holds them when someone is signed in
+ * and localStorage when they are not, with no merging between the two --
+ * signing in shows the account's list, signing out shows the browser's
+ * again.
  */
-class Favorites{
+class SongList{
 	constructor(...args){
 		this.init(...args)
 	}
-	init(){
-		this.slug = "favorites"
+	init(slug, limit){
+		this.slug = slug
+		this.limit = limit || 0
 		this.songs = []
 		this.loaded = false
 		// Deliberately not loaded here: this is constructed before the
@@ -25,7 +27,7 @@ class Favorites{
 	}
 	
 	localKey(){
-		return "favorites"
+		return "songlist:" + this.slug
 	}
 	
 	loggedIn(){
@@ -63,11 +65,23 @@ class Favorites{
 	 * explicit value so a retry cannot toggle it twice.
 	 */
 	toggle(songId){
-		var add = !this.has(songId)
+		return this.set(songId, !this.has(songId))
+	}
+	
+	/*
+	 * Put a song in the list or take it out. Adding something already
+	 * there moves it to the front rather than duplicating it, which is
+	 * what recently played needs.
+	 */
+	set(songId, add){
+		if(this.has(songId)){
+			this.songs.splice(this.songs.indexOf(songId), 1)
+		}
 		if(add){
 			this.songs.unshift(songId)
-		}else{
-			this.songs.splice(this.songs.indexOf(songId), 1)
+			if(this.limit){
+				this.songs.splice(this.limit)
+			}
 		}
 		
 		if(this.loggedIn()){

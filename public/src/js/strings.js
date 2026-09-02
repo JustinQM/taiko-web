@@ -96,6 +96,15 @@ var translations = {
 			ko: "즐겨찾기가 없습니다"
 		}
 	},
+	recentlyPlayed: {
+		title: {
+			ja: "最近あそんだ曲",
+			en: "Recently Played",
+			cn: "最近游玩",
+			tw: "最近遊玩",
+			ko: "최근 플레이"
+		}
+	},
 	randomSong: {
 		ja: "ランダムに曲をえらぶ",
 		en: "Random Song",
