@@ -254,6 +254,7 @@ var assets = {
 		"se_results_crown.ogg",
 		
 		"v_fullcombo.ogg",
+		"v_donderful.ogg",
 		"v_blank.ogg",
 		"v_renda.ogg",
 		"v_results_fullcombo.ogg",

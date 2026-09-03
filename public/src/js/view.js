@@ -1482,8 +1482,14 @@
 		var cleared = this.rules.clearReached(score.gauge)
 		var panel = "yatai_ending_fail"
 		var full = false
+		// A donderful -- every note good, nothing else -- got exactly the
+		// same ending as a full combo, because YataiDON does not tell the
+		// two apart and there is no art for it. It is hard enough to earn
+		// that it should look like something.
+		var donderful = false
 		if(cleared){
 			full = score.bad === 0
+			donderful = full && score.ok === 0
 			panel = full ? "yatai_ending_full_combo" : "yatai_ending_clear"
 		}
 		
@@ -1503,10 +1509,13 @@
 		// sticks over the top of both. The fans belong to the full combo
 		// animation only -- a plain clear has none.
 		ctx.save()
-		this.drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY)
+		this.drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY, donderful)
 		if(full){
 			this.drawEndingFans(ctx, elapsed, centreX, centreY)
 			this.drawEndingConfetti(ctx, elapsed, centreX, centreY)
+		}
+		if(donderful){
+			this.drawEndingSparkles(ctx, elapsed, centreX, centreY)
 		}
 		this.drawEndingSticks(ctx, elapsed, full, centreX, centreY)
 		ctx.restore()
@@ -1641,7 +1650,124 @@
 	 * word assembles itself. Its highlight fades in at 450ms over 183ms
 	 * and straight back out. Those are the skin's numbers too.
 	 */
-	drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY){
+	/*
+	 * The letters, with a rainbow running through them.
+	 *
+	 * Drawn on a scratch canvas so the colour lands only where the art
+	 * already is: the panel first, then the gradient in "color", which
+	 * takes the hue and leaves the shading and the black outline alone,
+	 * then the panel again in "destination-in" to put the transparency
+	 * back -- a blend mode fills the whole rectangle otherwise.
+	 *
+	 * The gradient runs on a two-second loop, so it reads as moving
+	 * rather than as an oddly coloured picture.
+	 */
+	drawEndingRainbow(ctx, sheet, x, y, elapsed){
+		if(!this.rainbowPanel){
+			this.rainbowPanel = document.createElement("canvas")
+		}
+		var canvas = this.rainbowPanel
+		if(canvas.width !== sheet.w || canvas.height !== sheet.h){
+			canvas.width = sheet.w
+			canvas.height = sheet.h
+		}
+		var scratch = canvas.getContext("2d")
+		scratch.clearRect(0, 0, sheet.w, sheet.h)
+		scratch.globalCompositeOperation = "source-over"
+		scratch.drawImage(sheet.img, sheet.sx, sheet.sy, sheet.w, sheet.h, 0, 0, sheet.w, sheet.h)
+		
+		var shift = (elapsed / 2000) % 1
+		var gradient = scratch.createLinearGradient(0, sheet.h, sheet.w, 0)
+		for(var i = 0; i <= 8; i++){
+			var hue = Math.floor(((i / 8 + shift) % 1) * 360)
+			gradient.addColorStop(i / 8, "hsl(" + hue + ", 100%, 55%)")
+		}
+		scratch.globalCompositeOperation = "color"
+		scratch.fillStyle = gradient
+		scratch.fillRect(0, 0, sheet.w, sheet.h)
+		scratch.globalCompositeOperation = "destination-in"
+		scratch.drawImage(sheet.img, sheet.sx, sheet.sy, sheet.w, sheet.h, 0, 0, sheet.w, sheet.h)
+		scratch.globalCompositeOperation = "source-over"
+		
+		ctx.drawImage(canvas, x - sheet.w / 2, y - sheet.h / 2)
+	}
+	
+	/*
+	 * Sparkles thrown out around the panel, on the beat of the same
+	 * bounce the sticks make. Twelve of them on a ring, each popping out
+	 * and fading, staggered so they arrive as a scatter rather than a
+	 * wheel.
+	 */
+	/*
+	 * The sparkle art is a soft white star, which is invisible against a
+	 * bright background and most of this one is bright. Each is tinted
+	 * from the same rainbow as the letters instead, built once per hue
+	 * and kept.
+	 */
+	sparkleTinted(sheet, hue){
+		if(!this.sparkleTints){
+			this.sparkleTints = {}
+		}
+		if(this.sparkleTints[hue]){
+			return this.sparkleTints[hue]
+		}
+		var canvas = document.createElement("canvas")
+		canvas.width = sheet.w
+		canvas.height = sheet.h
+		var scratch = canvas.getContext("2d")
+		scratch.drawImage(sheet.img, sheet.sx, sheet.sy, sheet.w, sheet.h, 0, 0, sheet.w, sheet.h)
+		scratch.globalCompositeOperation = "source-atop"
+		scratch.fillStyle = "hsl(" + hue + ", 100%, 58%)"
+		scratch.fillRect(0, 0, sheet.w, sheet.h)
+		this.sparkleTints[hue] = canvas
+		return canvas
+	}
+	
+	drawEndingSparkles(ctx, elapsed, centreX, centreY){
+		var since = elapsed - View.ENDING.fcLiftDelay
+		if(since < 0){
+			return
+		}
+		var sheet = this.endingSheet("yatai_ending_sparkle", 0, 1)
+		if(!sheet){
+			return
+		}
+		for(var i = 0; i < 18; i++){
+			// Three turns of the ring, each offset a third of a step, so
+			// later waves fall between the earlier ones.
+			var wave = Math.floor(i / 6)
+			var angle = (i % 6) / 6 * Math.PI * 2 + wave * Math.PI / 9 + 0.3
+			var life = (since - i * 80) / 1100
+			if(life <= 0 || life >= 1){
+				continue
+			}
+			var out = 1 - Math.pow(1 - life, 3)
+			// Clear of the panel from the start: on top of it they land
+			// on the brightest thing on the screen and disappear.
+			var distance = 210 + 250 * out
+			var scale = life < 0.2 ? life / 0.2 : 1 - (life - 0.2) / 0.8
+			scale = Math.max(0, Math.min(1, scale))
+			ctx.save()
+			ctx.globalAlpha *= scale
+			ctx.translate(centreX + Math.cos(angle) * distance * 1.5,
+				centreY + Math.sin(angle) * distance * 0.8)
+			ctx.rotate(life * Math.PI)
+			var size = 1.2 + 2 * scale
+			ctx.scale(size, size)
+			// A coloured star with the white one over it: the colour
+			// gives it an edge against a pale background, the white core
+			// keeps it reading as a sparkle rather than a blob.
+			var tinted = this.sparkleTinted(sheet, (i * 47 + Math.floor(elapsed / 8)) % 360)
+			ctx.drawImage(tinted, -sheet.w / 2, -sheet.h / 2)
+			ctx.globalAlpha *= 0.7
+			ctx.scale(0.55, 0.55)
+			ctx.drawImage(sheet.img, sheet.sx, sheet.sy, sheet.w, sheet.h,
+				-sheet.w / 2, -sheet.h / 2, sheet.w, sheet.h)
+			ctx.restore()
+		}
+	}
+	
+	drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY, donderful){
 		if(elapsed < 150){
 			return
 		}
@@ -1666,7 +1792,12 @@
 		}
 		
 		if(assembled){
-			this.drawEndingImage(ctx, this.endingSheet(panel, 0, 1), 0, 0)
+			var sheet = this.endingSheet(panel, 0, 1)
+			if(donderful && sheet){
+				this.drawEndingRainbow(ctx, sheet, 0, 0, elapsed)
+			}else{
+				this.drawEndingImage(ctx, sheet, 0, 0)
+			}
 		}else if(panel === "yatai_ending_clear"){
 			// Drawn back to front, as the skin does, so earlier pieces
 			// overlap later ones.

@@ -8,7 +8,9 @@ fatal, so a clean checkout stalls at 45% with "An error occurred, please
 refresh" and the game never starts.
 
 This writes a 1x1 transparent PNG for each missing one, so the game boots
-and those elements simply draw nothing. It is run during the image build.
+and those elements simply draw nothing. Sounds get the same treatment
+with a copy of v_blank.ogg, which upstream ships and which is silence.
+It is run during the image build.
 The private overlay image copies real artwork over the top afterwards, so
 the placeholders only survive where nothing better exists.
 
@@ -37,12 +39,23 @@ def listed_images(assets_js: Path) -> list:
     return re.findall(r'"([^"]+)"', match.group(1))
 
 
+def listed(assets_js: Path, key: str) -> list:
+    """Pull one array out of assets.js without evaluating any JS."""
+    text = assets_js.read_text(encoding="utf-8")
+    match = re.search(r'"%s"\s*:\s*\[(.*?)\]' % key, text, re.S)
+    if not match:
+        raise SystemExit(f'no "{key}" array found in {assets_js}')
+    return re.findall(r'"([^"]+)"', match.group(1))
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
+    assets_js = root / "public" / "src" / "js" / "assets.js"
     img_dir = root / "public" / "assets" / "img"
-    names = listed_images(root / "public" / "src" / "js" / "assets.js")
+    audio_dir = root / "public" / "assets" / "audio"
 
     created = []
+    names = listed(assets_js, "img")
     for name in names:
         target = img_dir / name
         if target.exists():
@@ -50,9 +63,27 @@ def main():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(BLANK_PNG)
         created.append(name)
-
     print(f"{len(names)} images listed, {len(created)} placeholders created")
     for name in created:
+        print(f"  {name}")
+
+    # Silence for any sound this build names but upstream does not have.
+    # A 404 here is as fatal as a missing image.
+    silence = audio_dir / "v_blank.ogg"
+    sounds = []
+    for key in ("audioSfx", "audioSfxLR", "audioSfxLoud", "audioMusic"):
+        sounds += listed(assets_js, key)
+    quiet = []
+    if silence.exists():
+        for name in sounds:
+            target = audio_dir / name
+            if target.exists():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(silence.read_bytes())
+            quiet.append(name)
+    print(f"{len(sounds)} sounds listed, {len(quiet)} placeholders created")
+    for name in quiet:
         print(f"  {name}")
     return 0
 

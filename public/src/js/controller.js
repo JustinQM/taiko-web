@@ -245,10 +245,16 @@ class Controller{
 		var score = this.getGlobalScore()
 		var vp
 		if(this.game.rules.clearReached(score.gauge)){
-			if(score.ok === 0 && score.bad === 0){ // TODO: donder fullcombo
+			if(score.ok === 0 && score.bad === 0){
+				// The skin has no jingle of its own for a donderful, so
+				// the one that plays is the full combo's. What it does
+				// have is a voice line for a perfect clear, which it
+				// keeps for its results screen; this is the occasion for
+				// it. It used to play silence here, so a donderful was
+				// quieter than the full combo it beats.
 				vp = "donderfulcombo"
-                                this.playSound("v_blank", 0.050)
-							}else if(score.bad === 0){
+				this.playSound("v_donderful", 0.350)
+			}else if(score.bad === 0){
 				vp = "fullcombo"
 				this.playSound("v_fullcombo", 1.350)
 			}else{
