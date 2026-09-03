@@ -43,7 +43,7 @@ class Settings{
 			},
 			gamepadLayout: {
 				type: "gamepad",
-				options: ["a", "b", "c"],
+				options: ["a", "b", "c", "d"],
 				default: "a",
 				gamepad: true
 			},

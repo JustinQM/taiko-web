@@ -190,3 +190,43 @@ def test_spartan_is_inert_in_multiplayer_and_autoplay(game):
         return results
     }""")
     assert untouched == [True, True], "spartan mode fired in multiplayer or autoplay"
+
+
+def test_the_nintendo_pad_layout_is_type_b_the_other_way_round(game):
+    """A pad in Nintendo mode reports its buttons by label rather than by
+    position, so the button marked A arrives where an Xbox pad puts the
+    bottom one. Every layout that names those buttons came out mirrored
+    and the only way to play was to switch the pad to Xbox mode."""
+    layouts = game.page.evaluate("""() => ({
+        b: GameInput.gamepadLayout("b"),
+        d: GameInput.gamepadLayout("d")
+    })""")
+    b, d = layouts["b"], layouts["d"]
+    faces = lambda buttons: [x for x in buttons if x in ("a", "b", "x", "y")]
+    assert b["game"]["don_l"] == d["game"]["don_l"], "the d-pad is unchanged"
+    assert b["game"]["ka_l"] == d["game"]["ka_l"]
+    # Only the face buttons swap. The shoulders are not labelled A or B
+    # and mean the same thing whichever mode the pad is in.
+    assert faces(b["game"]["don_r"]) == faces(d["game"]["ka_r"])
+    assert faces(b["game"]["ka_r"]) == faces(d["game"]["don_r"])
+    assert "rs" in d["game"]["don_r"] and "rb" in d["game"]["ka_r"]
+
+
+def test_the_nintendo_layout_swaps_confirm_and_back_too(game):
+    """The button the player reads as A has to confirm, whichever index
+    the pad reports it under."""
+    menus = game.page.evaluate("""() => ({
+        b: GameInput.gamepadLayout("b").menu,
+        d: GameInput.gamepadLayout("d").menu
+    })""")
+    assert menus["b"]["cancel"] == ["a"] and menus["b"]["confirm"][0] == "b"
+    assert menus["d"]["cancel"] == ["b"] and menus["d"]["confirm"][0] == "a"
+    assert menus["b"]["previous"] == menus["d"]["previous"], "movement is unchanged"
+
+
+def test_the_nintendo_layout_is_offered(game):
+    game.open_settings()
+    assert game.setting("gamepadLayout") == "a"
+    offered = game.page.evaluate(
+        "() => settings.items.gamepadLayout.options")
+    assert offered == ["a", "b", "c", "d"]

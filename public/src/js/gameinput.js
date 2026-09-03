@@ -1,4 +1,68 @@
 class GameInput{
+	/*
+	 * What each pad button does, per layout.
+	 *
+	 * Type D is type B with the two face buttons the other way round, and
+	 * with confirm and back swapped to match. A pad left in Nintendo mode
+	 * reports its buttons by label rather than by position -- the button
+	 * marked A arrives as index 0, where on an Xbox pad index 0 is the
+	 * bottom one -- so every layout that names those buttons came out
+	 * mirrored and the only way to play was to switch the pad to Xbox
+	 * mode. In type D, left and up on the pad and A are ka; down and
+	 * right and B are don; A confirms and B goes back.
+	 */
+	static gamepadLayout(layout){
+		var menu = {
+			cancel: ["a"],
+			confirm: ["b", "ls", "rs"],
+			previous: ["u", "l", "lb", "lt", "lsu", "lsl"],
+			next: ["d", "r", "rb", "rt", "lsd", "lsr"],
+			pause: ["start"]
+		}
+		if(layout === "d"){
+			return {
+				game: {
+					don_l: ["d", "r", "ls"],
+					don_r: ["b", "y", "rs"],
+					ka_l: ["u", "l", "lb", "lt"],
+					ka_r: ["a", "x", "rb", "rt"]
+				},
+				menu: Object.assign({}, menu, {cancel: ["b"], confirm: ["a", "ls", "rs"]})
+			}
+		}
+		if(layout === "b"){
+			return {
+				game: {
+					don_l: ["d", "r", "ls"],
+					don_r: ["a", "x", "rs"],
+					ka_l: ["u", "l", "lb", "lt"],
+					ka_r: ["b", "y", "rb", "rt"]
+				},
+				menu: menu
+			}
+		}
+		if(layout === "c"){
+			return {
+				game: {
+					don_l: ["d", "l", "ls"],
+					don_r: ["a", "b", "rs"],
+					ka_l: ["u", "r", "lb", "lt"],
+					ka_r: ["x", "y", "rb", "rt"]
+				},
+				menu: menu
+			}
+		}
+		return {
+			game: {
+				don_l: ["u", "d", "l", "r", "ls"],
+				don_r: ["a", "b", "x", "y", "rs"],
+				ka_l: ["lb", "lt"],
+				ka_r: ["rb", "rt"]
+			},
+			menu: menu
+		}
+	}
+	
 	constructor(...args){
 		this.init(...args)
 	}
@@ -28,39 +92,10 @@ class GameInput{
 		}
 		this.keyboardEvents = 0
 		
-		var layout = settings.getItem("gamepadLayout")
-		if(layout === "b"){
-			var gameBtn = {
-				don_l: ["d", "r", "ls"],
-				don_r: ["a", "x", "rs"],
-				ka_l: ["u", "l", "lb", "lt"],
-				ka_r: ["b", "y", "rb", "rt"]
-			}
-		}else if(layout === "c"){
-			var gameBtn = {
-				don_l: ["d", "l", "ls"],
-				don_r: ["a", "b", "rs"],
-				ka_l: ["u", "r", "lb", "lt"],
-				ka_r: ["x", "y", "rb", "rt"]
-			}
-		}else{
-			var gameBtn = {
-				don_l: ["u", "d", "l", "r", "ls"],
-				don_r: ["a", "b", "x", "y", "rs"],
-				ka_l: ["lb", "lt"],
-				ka_r: ["rb", "rt"]
-			}
-		}
-		this.gamepad = new Gamepad(gameBtn)
+		var buttons = GameInput.gamepadLayout(settings.getItem("gamepadLayout"))
+		this.gamepad = new Gamepad(buttons.game)
 		this.gamepadInterval = setInterval(this.gamepadKeys.bind(this), 1000 / 60 / 2)
-		
-		this.gamepadMenu = new Gamepad({
-			cancel: ["a"],
-			confirm: ["b", "ls", "rs"],
-			previous: ["u", "l", "lb", "lt", "lsu", "lsl"],
-			next: ["d", "r", "rb", "rt", "lsd", "lsr"],
-			pause: ["start"]
-		})
+		this.gamepadMenu = new Gamepad(buttons.menu)
 		
 		if(controller.multiplayer === 1){
 			pageEvents.add(window, "beforeunload", event => {

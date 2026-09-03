@@ -1060,6 +1060,13 @@ var translations = {
 				cn: "类型C",
 				tw: "類型C",
 				ko: "타입 C"
+			},
+			d: {
+				ja: "タイプD（ニンテンドー配置）",
+				en: "Type D (Nintendo)",
+				cn: "类型D（任天堂布局）",
+				tw: "類型D（任天堂配置）",
+				ko: "타입 D (닌텐도)"
 			}
 		},
 		latency: {
