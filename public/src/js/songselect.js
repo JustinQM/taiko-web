@@ -1520,6 +1520,19 @@ class SongSelect{
 	 * it has settled. Ease-out cubic, as YataiDON's move animation uses:
 	 * the wheel leaves immediately and eases into place.
 	 */
+	/*
+	 * How long after a press the selected box starts opening.
+	 *
+	 * YataiDON creates the box at the press but does not start its
+	 * animation until the wheel has come to rest -- and then waits
+	 * another 133ms. Scroll through and nothing opens; stop, and the one
+	 * you stopped on does. Opening on the way past is what made fast
+	 * scrolling read as flickering.
+	 */
+	expandStart(landed){
+		return (landed ? 0 : this.songSelecting.speed) + this.songSelecting.expandDelay
+	}
+	
 	slideOffset(elapsed){
 		var progress = Math.min(1, Math.max(0, elapsed / this.songSelecting.speed))
 		return Math.pow(1 - progress, 3)
@@ -1668,7 +1681,7 @@ class SongSelect{
 			this.state.slide = snap ? 0 : moved
 			this.state.lastMove = moveBy
 			this.state.moveMS = ms
-			this.state.expandMS = ms + this.songSelecting.expandDelay
+			this.state.expandMS = ms + this.expandStart(snap)
 			this.state.locked = snap ? 0 : 1
 			this.state.moveHover = null
 			this.state.skip = !!ctrl
@@ -1702,7 +1715,9 @@ class SongSelect{
 			// sliding the whole way there.
 			this.state.slide = 0
 			this.state.moveMS = this.getMS()
-			this.state.expandMS = this.state.moveMS + this.songSelecting.expandDelay
+			// A jump lands rather than sliding, so there is nothing to
+			// wait for before the box opens.
+			this.state.expandMS = this.state.moveMS + this.expandStart(true)
 			this.state.locked = 0
 			this.state.moveHover = null
 			this.lastMoveAt = this.getMS()

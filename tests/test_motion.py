@@ -221,24 +221,29 @@ def test_the_step_sound_plays_on_the_press(wheel):
     assert when["sameTurn"] is True
 
 
-def test_the_box_opens_after_the_slide_and_outlasts_it(wheel):
-    """It is its own animation rather than a slice of the step, so it can
-    overlap whatever comes next -- squeezing it inside the step is what
-    made the wheel look like it was snapping between positions."""
+def test_the_box_waits_for_the_wheel_to_stop_before_opening(wheel):
+    """YataiDON creates the yellow box at the press but does not start
+    opening it until the box has come to rest, and then waits 133ms
+    more.
+
+    Ours started 133ms after the press, part way through a 166ms slide,
+    so scrolling at any pace between the two started every box opening
+    and cut it off again -- which reads as flickering rather than
+    scrolling."""
     timing = wheel.page.evaluate("""() => {
         const s = __ss.songSelecting
         __ss.moveToSong(1)
         return {
-            delay: __ss.state.expandMS - __ss.state.moveMS,
+            wait: __ss.state.expandMS - __ss.state.moveMS,
             duration: s.expandDuration,
             slide: s.speed,
+            delay: s.expandDelay,
         }
     }""")
     wheel.settle()
-    assert timing["delay"] == 133
+    assert timing["wait"] == timing["slide"] + timing["delay"]
     assert timing["duration"] == 233
-    assert timing["delay"] + timing["duration"] > timing["slide"], \
-        "the box finishes opening before the slide ends"
+    assert timing["wait"] > timing["slide"], "it starts before the slide ends"
 
 
 def test_a_category_jump_lands_rather_than_sliding(wheel):
@@ -252,3 +257,33 @@ def test_a_category_jump_lands_rather_than_sliding(wheel):
     assert state["slide"] == 0
     assert state["locked"] == 0
     assert wheel.errors == []
+
+
+def test_a_jump_lands_and_opens_without_waiting(wheel):
+    """Nothing slides on a jump, so there is nothing to wait for."""
+    timings = wheel.page.evaluate("""() => {
+        __ss.categoryJump(1)
+        return {
+            wait: __ss.state.expandMS - __ss.state.moveMS,
+            delay: __ss.songSelecting.expandDelay
+        }
+    }""")
+    assert timings["wait"] == timings["delay"]
+
+
+def test_scrolling_past_a_song_never_opens_it(wheel):
+    """Held input repeats every 110ms and the box needs 299ms of quiet,
+    so a run through the list opens nothing on the way."""
+    unopened = wheel.page.evaluate("""() => {
+        const start = __ss.getMS()
+        let ms = start
+        let opened = 0
+        for(let i = 0; i < 8; i++){
+            __ss.state.moveMS = ms
+            __ss.state.expandMS = ms + __ss.expandStart(false)
+            ms += __ss.songSelecting.repeatInterval
+            if(ms >= __ss.state.expandMS) opened++
+        }
+        return opened
+    }""")
+    assert unopened == 0
