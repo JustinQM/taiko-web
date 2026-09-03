@@ -148,15 +148,20 @@ session predates the config change.
 
 ## Rollback
 
-The old image is still on mia under its date tag -- `docker images
-taiko-web` lists them -- and `taiko-web:latest` still points at the
-pre-fork build until something moves it. Rollback is:
+**The pre-fork image is gone.** It was cleaned up on 2026-09-02, after
+the cutover had been running all day, along with every base image and
+every superseded build. What is left on mia is the current
+`taiko-web-mia:latest` and one build behind it under its date tag --
+`docker images taiko-web-mia` shows what there is.
 
-1. put `PLUGINS` back in `config.py` (keep `MULTIPLAYER_BIND`; the old
-   image ignores it)
-2. restore the nginx bind mount and set the three `image:` lines back to
-   `taiko-web:latest`
-3. redeploy
+So rollback now means the previous fork build, not the pre-fork one:
+set the three `image:` lines to that date tag and redeploy. Config and
+compose stay as they are; every fork build wants the same ones.
+
+Going back to the pre-fork build would mean rebuilding it from the
+upstream revision and putting `PLUGINS` back in `config.py`. Nothing has
+needed that, and the further the two diverge the less likely it is to be
+the right answer -- the scores and songs are shared either way.
 
 Nothing in this change touches mongo, redis or the songs directory, so
 there is no data to roll back and no migration to undo. Scores, users and
