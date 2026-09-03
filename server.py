@@ -323,14 +323,14 @@ async def connection(ws, path):
                 elif action == "songsel":
                     # Session song selection
                     if "other_user" in user and "ws" in user["other_user"]:
-                        if msg_type in ("songsel", "catjump", "folder", "folderup", "random"):
-                            # Change song select position. folder, folderup
-                            # and random carry the same shape and are echoed
-                            # to both sides for the same reason: the two
-                            # clients apply the move together rather than
-                            # one leading and the other following. Random
-                            # has to be one of them because only one side
-                            # may choose the song.
+                        if msg_type in ("songsel", "catjump", "folder", "folderup", "jumpto"):
+                            # Change song select position. All of them are
+                            # echoed to both sides for the same reason: the
+                            # two clients apply the move together rather
+                            # than one leading and the other following.
+                            # jumpto names a song by its folder path, which
+                            # is what random and search need -- neither is
+                            # a move the peer could work out for itself.
                             if user["other_user"]["action"] == "songsel" and type(value) is dict:
                                 value["player"] = user["player"]
                                 sent_msg = msgobj(msg_type, value)

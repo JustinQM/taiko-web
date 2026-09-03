@@ -404,9 +404,13 @@ def scored(wheel):
 def test_crowns_are_drawn_at_the_skins_sizes(scored):
     """They were drawn as a fraction of the fallback path's box, which
     made both of them small: 23px inside the opened box where the skin
-    has 56, and 28 above a closed one where the skin has 40."""
+    has 56, and 28 above a closed one where the skin has 40.
+
+    48 rather than 56 in the opened box: the skin packs them 60 apart on
+    the difficulty screen too, but ours sit 60 apart in the box itself,
+    where 56 leaves the outlines touching."""
     sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
-    assert ("box", 56) in sizes, sizes
+    assert ("box", 48) in sizes, sizes
     assert ("small", 40) in sizes, sizes
 
 
@@ -417,3 +421,70 @@ def test_crowns_shrink_when_two_players_share_the_row(scored):
     sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
     assert all(size <= 28 for _, size in sizes), sizes
     assert all(variant == "small" for variant, _ in sizes), sizes
+
+
+def test_search_opens_the_song_it_found(wheel):
+    """Search looks through the whole library; the wheel holds one folder
+    of it. This looked for the chosen song in the current listing, found
+    nothing, and set the cursor to -1 -- so picking a result did nothing
+    at all."""
+    wanted = wheel.page.evaluate("""() => {
+        const song = __ss.navigator.songItems[400] || __ss.navigator.songItems[0]
+        __ss.searchProceed(song.id)
+        return song.title
+    }""")
+    wheel.page.wait_for_function(
+        "() => __ss.state.screen === 'difficulty'", timeout=8000)
+    landed = wheel.page.evaluate("""() => ({
+        title: __ss.songs[__ss.selectedSong].title,
+        path: __ss.navigator.pathIds()
+    })""")
+    assert landed["title"] == wanted
+    assert landed["path"], "the song's folder was never opened"
+
+
+def test_search_from_inside_another_folder(wheel):
+    """The folder it lands in is rarely the one it was searched from."""
+    wheel.enter_folder()
+    wheel.settle()
+    result = wheel.page.evaluate("""() => {
+        const here = __ss.navigator.pathIds()
+        const song = __ss.navigator.songItems.find(s => {
+            const t = __ss.navigator.locate(s)
+            return t && JSON.stringify(t.path) !== JSON.stringify(here)
+        })
+        __ss.searchProceed(song.id)
+        return {wanted: song.title, from: here}
+    }""")
+    wheel.page.wait_for_function(
+        "() => __ss.state.screen === 'difficulty'", timeout=8000)
+    landed = wheel.page.evaluate("""() => ({
+        title: __ss.songs[__ss.selectedSong].title,
+        path: __ss.navigator.pathIds()
+    })""")
+    assert landed["title"] == result["wanted"]
+    assert landed["path"] != result["from"]
+
+
+def test_the_wheel_travels_the_distance_it_actually_covers(wheel):
+    """A step used to be one box width, which was true while every box
+    was one width. A folder is nearly five of them, so stepping onto one
+    slid a hundred pixels and jumped the other three hundred."""
+    measured = wheel.page.evaluate("""() => {
+        const slat = __ss.songAsset.width
+        const block = __ss.songAsset.selectedWidth
+        const margin = __ss.songAsset.marginLeft
+        // Onto a folder, and between two folders: the root is folders
+        // and menu entries, so both cases are here.
+        const folders = __ss.songs.map((s, i) => __ss.entryIsFolder(s) ? i : -1)
+            .filter(i => i >= 0)
+        const between = folders.find(i => folders.includes(i + 1))
+        __ss.selectedSong = between + 1
+        const folderToFolder = Math.abs(__ss.slidePixels(1))
+        const menu = __ss.songs.findIndex(s => s.action && s.action !== "folder")
+        __ss.selectedSong = menu + 1
+        const menuToMenu = Math.abs(__ss.slidePixels(-1))
+        return {folderToFolder, menuToMenu, slat, block, margin}
+    }""")
+    assert measured["folderToFolder"] == measured["block"] + measured["margin"]
+    assert measured["menuToMenu"] == measured["slat"] + measured["margin"]

@@ -283,3 +283,21 @@ def test_a_lost_reply_does_not_lock_the_wheel(pair):
         return [immediately, __ss.sendLocked()]
     }""")
     assert stuck == [True, False]
+
+
+def test_search_takes_the_peer_with_you(pair):
+    """Search picks out of a list the peer never saw, so the song it
+    landed on has to travel with the message -- the same way random does.
+    Both clients open its folder and its difficulty screen."""
+    a, b = pair
+    wanted = a.page.evaluate("""() => {
+        const song = __ss.navigator.songItems[200] || __ss.navigator.songItems[0]
+        __ss.searchProceed(song.id)
+        return song.title
+    }""")
+    for client in (a, b):
+        client.page.wait_for_function(
+            "() => __ss.state.screen === 'difficulty'", timeout=15000)
+    assert a.wheel()["title"] == wanted
+    assert b.wheel()["title"] == wanted
+    assert a.path() == b.path()

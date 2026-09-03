@@ -290,6 +290,7 @@ class SongSelect{
 			optionMenuHoverRow: null,
 			sound: 0,
 			selLock: false,
+			slidePixels: 0,
 			catJump: false,
 			focused: true,
 			waitPreview: 0,
@@ -1699,6 +1700,7 @@ class SongSelect{
 			// long move from the peer.
 			var snap = ctrl || Math.abs(moved) > 3
 			this.state.slide = snap ? 0 : moved
+			this.state.slidePixels = snap ? 0 : this.slidePixels(moved)
 			this.state.lastMove = moveBy
 			this.state.moveMS = ms
 			this.state.expandMS = ms + this.expandStart(snap)
@@ -1733,6 +1735,7 @@ class SongSelect{
 			// A jump crosses a whole category, so it lands rather than
 			// sliding the whole way there.
 			this.state.slide = 0
+			this.state.slidePixels = 0
 			this.state.moveMS = this.getMS()
 			// A jump lands rather than sliding, so there is nothing to
 			// wait for before the box opens.
@@ -1968,6 +1971,37 @@ class SongSelect{
 	}
 	
 	/*
+	 * How far the wheel travels for a move, in pixels.
+	 *
+	 * It used to be one box width per step, which was true while every
+	 * box was the same width. A folder is nearly five of them, so a step
+	 * onto one slid a hundred pixels and then jumped the remaining three
+	 * hundred -- which is the lurch between the big blocks.
+	 *
+	 * The wheel is anchored on the selected box, so a step moves
+	 * everything by half of what is being left plus half of what is being
+	 * arrived at, plus the margin between them. Every box is at its
+	 * unopened width while the wheel is moving: the opening does not
+	 * start until it has stopped.
+	 */
+	slidePixels(moved){
+		if(!moved){
+			return 0
+		}
+		var margin = this.songAsset.marginLeft
+		var length = this.songs.length
+		var step = moved > 0 ? 1 : -1
+		var from = this.mod(length, this.selectedSong - moved)
+		var distance = 0
+		for(var i = 0; i !== moved; i += step){
+			var here = this.songs[this.mod(length, from + i)]
+			var next = this.songs[this.mod(length, from + i + step)]
+			distance += (this.entryWidth(here) + this.entryWidth(next)) / 2 + margin
+		}
+		return distance * step
+	}
+	
+	/*
 	 * How wide the selected box ends up, once it has finished opening.
 	 *
 	 * The renderer and the mouse both need this and they used to decide
@@ -2102,8 +2136,7 @@ class SongSelect{
 					if(!this.sendLocked()){
 						var chosen = this.navigator.randomSong()
 						if(chosen){
-							this.lockSend()
-							p2.send("random", {path: chosen.path, song: chosen.index})
+							this.jumpTogether(chosen, false)
 						}
 					}
 					return
@@ -2709,13 +2742,13 @@ class SongSelect{
 			// eases to nothing on a cubic, so it leaves at once and settles
 			// rather than travelling at a constant speed.
 			if(this.state.slide && elapsed < changeSpeed){
-				xOffset = this.slideOffset(elapsed) * this.state.slide
-					* (this.songAsset.width + this.songAsset.marginLeft)
+				xOffset = this.slideOffset(elapsed) * this.state.slidePixels
 				songSelMoving = true
 				this.state.locked = 1
 			}else{
 				if(this.state.slide){
 					this.state.slide = 0
+					this.state.slidePixels = 0
 				}
 				if(this.previewing !== "muted"){
 					this.playBgm(!this.songs[this.selectedSong].courses)
@@ -3007,17 +3040,23 @@ class SongSelect{
 									ctx: ctx,
 									type: crownType,
 									x: (songSel ? x + 33 + i * 60 : x + 402 + i * 100) + (players === 2 ? p === 0 ? -13 : 13 : 0),
-									// Lowered to sit just above the
-									// difficulty bars rather than adrift
+									// Just above the difficulty bars on
+									// both screens, rather than adrift
 									// between them and the top of the box.
-									y: songSel ? y + (players === 2 ? 75 : 85) : y + 30,
-									// The skin's own, 56 across, with the
-									// frame that matches the difficulty --
-									// but two of them go side by side in a
-									// session, where 56 each does not fit.
+									y: songSel
+										? y + (players === 2 ? 75 : 88)
+										: y + (players === 2 ? 30 : 55),
+									// The skin's own art, with the frame
+									// that matches the difficulty. 56 is
+									// the skin's size and fits the wider
+									// spacing of the difficulty screen; the
+									// opened box packs them 60 apart, where
+									// 56 leaves them touching. Two of them
+									// go side by side in a session, which
+									// needs the small ones.
 									variant: players === 2 ? "small" : "box",
 									frame: currentUra ? 4 : i,
-									size: players === 2 ? 24 : 56,
+									size: players === 2 ? 24 : (songSel ? 48 : 56),
 									ratio: this.ratio / this.pixelRatio
 								})
 							}
@@ -4600,15 +4639,56 @@ class SongSelect{
 		}
 	}
 
+	/*
+	 * Open a song picked out of the search results.
+	 *
+	 * Search looks through the whole library and the wheel only holds one
+	 * folder of it, so the song is almost never in the current listing --
+	 * this used to look for it there, find nothing, and set the cursor to
+	 * -1. It has to be found in the tree and its folder opened, which is
+	 * the same thing Random does.
+	 */
 	searchProceed(songId){
-		var song = this.songs.find(song => song.id === songId)
+		var song = this.navigator.songItems.find(item => item.id === songId)
 		this.removeSearch()
 		this.playBgm(false)
+		if(!song){
+			return
+		}
+		var target = this.navigator.locate(song)
+		if(!target){
+			return
+		}
+		if(p2.session){
+			// Both clients open the folder and the difficulty screen
+			// together, rather than one of them being left in the wheel.
+			if(!this.sendLocked()){
+				this.jumpTogether(target, true)
+			}
+			return
+		}
 		this.drawBackground(song.originalCategory)
-
-		var songIndex = this.songs.findIndex(song => song.id === songId)
-		this.selectedSong = songIndex
+		var index = this.navigator.jumpToPath(target.path, target.index)
+		if(index === null){
+			return
+		}
+		this.enterListing(index)
 		this.toSelectDifficulty()
+	}
+	
+	/*
+	 * Send both clients to one song, named by the folder path it lives in
+	 * and its place in that folder.
+	 *
+	 * Random and search are the two things that land somewhere the peer
+	 * has no way of working out for itself: one because only one side may
+	 * roll, the other because the choice was made in a list the peer
+	 * never saw. Everything else in song select is a move the peer can
+	 * follow from an index.
+	 */
+	jumpTogether(target, select){
+		this.lockSend()
+		p2.send("jumpto", {path: target.path, song: target.index, select: !!select})
 	}
 
 	onusers(response){
@@ -4662,14 +4742,17 @@ class SongSelect{
 				}
 				return
 			}
-			// Random carries where to land rather than where it was sent
-			// from, so it opens the path instead of following it.
-			if(response.type === "random"){
+			// A jump carries where to land rather than where it was sent
+			// from, so it opens that path instead of following the
+			// sender's. Random and search both use it.
+			if(response.type === "jumpto"){
 				var landed = this.navigator.jumpToPath(response.value.path, +response.value.song)
 				if(landed !== null){
 					this.playSound("se_don", 0, response.value.player)
 					this.enterListing(landed)
-					pageEvents.send("song-select-random")
+					if(response.value.select){
+						this.toSelectDifficulty({player: response.value.player})
+					}
 				}
 				return
 			}
@@ -4738,7 +4821,7 @@ class SongSelect{
 			}
 			if(p2.session && (response.type == "songsel" || response.type == "catjump"
 			|| response.type == "folder" || response.type == "folderup"
-			|| response.type == "random")){
+			|| response.type == "jumpto")){
 				this.onsongsel(response)
 				this.state.selLock = false
 			}
