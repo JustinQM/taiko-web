@@ -136,6 +136,7 @@ var assets = {
 		"yatai_crown_box_silver.png",
 		"yatai_crown_box_gold.png",
 		"yatai_crown_box_rainbow.png",
+		"yatai_crown_outline.png",
 		"yatai_gauge_soul_fire.png",
 		"yatai_ending_bachio_l_in.png",
 		"yatai_ending_bachio_r_in.png",

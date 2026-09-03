@@ -1370,7 +1370,7 @@
 		// The skin has real crown art; the path is what the public build
 		// falls back to, since that art is private. Both occupy the same
 		// 94x78 box so everything that positions a crown is unaffected.
-		if(config.type && this.drawCrownImage(ctx, config)){
+		if(this.drawCrownImage(ctx, config)){
 			ctx.restore()
 			return
 		}
@@ -1471,7 +1471,13 @@
 		// one per difficulty, outlined to match.
 		var variant = config.variant || ((config.scale || 1) < 0.45 ? "small" : "")
 		var prefix = variant ? variant + "_" : ""
-		var img = assets.image["yatai_crown_" + prefix + config.type]
+		// An empty slot is the skin's faint outline, which is drawn in
+		// the same frame as the crowns and so comes out the same size.
+		// The vector path fills its whole box, which made a crown nobody
+		// had half again the size of one they did.
+		var img = config.type
+			? assets.image["yatai_crown_" + prefix + config.type]
+			: assets.image["yatai_crown_outline"]
 		// A 1x1 placeholder is the public build having no art; fall back
 		// rather than stretching a single pixel over the crown.
 		if(!img || !img.complete || img.naturalWidth < 2){
@@ -1480,25 +1486,115 @@
 		if(config.shine){
 			ctx.globalAlpha *= 1 - config.shine
 		}
-		var frames = variant === "box" ? 5 : 1
+		if(!config.type){
+			// Faint, as the skin draws it. At full strength an empty
+			// slot reads at a glance as a crown you have.
+			ctx.globalAlpha *= 0.4
+		}
+		var frames = config.type && variant === "box" ? 5 : 1
 		var frame = Math.max(0, Math.min(frames - 1, config.frame || 0))
 		var sw = img.naturalWidth / frames
 		// Drawn at its own aspect, filling the width of the box the
 		// caller's scale is measured against, so nothing is flattened.
 		var height = 94 * img.naturalHeight / sw
-		var source = img
-		var sx = frame * sw
+		var sh = img.naturalHeight
+		// Usually one draw of the frame. A turning rainbow in the opened
+		// box is two: the crown, hue-shifted, and the difficulty's emblem
+		// over it at the colour it is meant to be.
+		var draws = [[img, frame * sw]]
 		if(config.type === "rainbow"){
-			var turned = this.rainbowCrown(img, sx, sw, img.naturalHeight,
-				prefix + config.type + "-" + frame)
-			if(turned){
-				source = turned
-				sx = 0
+			if(frames > 1){
+				var parts = this.crownLayers(img, frames, sw, sh, prefix + config.type)
+				var turned = parts && this.hueTurned(parts.crown, 0, sw, sh, prefix + "crown")
+				if(turned){
+					draws = [[turned, 0], [parts.emblems[frame], 0]]
+				}
+			}else{
+				var turned = this.hueTurned(img, frame * sw, sw, sh, prefix + config.type)
+				if(turned){
+					draws = [[turned, 0]]
+				}
 			}
 		}
-		ctx.drawImage(source, sx, 0, sw, img.naturalHeight,
-			0, 39 - height / 2, 94, height)
+		for(var i = 0; i < draws.length; i++){
+			ctx.drawImage(draws[i][0], draws[i][1], 0, sw, sh, 0, 39 - height / 2, 94, height)
+		}
 		return true
+	}
+	
+	/*
+	 * The crown apart from the difficulty emblem beside it.
+	 *
+	 * The five frames are one crown with a different emblem on each, so
+	 * the pixels that are identical in all five are the crown and the
+	 * rest is the emblem. Splitting them lets the rainbow turn without
+	 * dragging the emblem round with it: a green leaf cycling through
+	 * purple stops saying which difficulty it is.
+	 *
+	 * Worked out once from the art rather than written down as a
+	 * rectangle, because the emblem overlaps the crown and sits
+	 * differently on each frame.
+	 */
+	crownLayers(img, frames, sw, sh, key){
+		if(!this.crownParts){
+			this.crownParts = {}
+		}
+		if(key in this.crownParts){
+			return this.crownParts[key]
+		}
+		this.crownParts[key] = null
+		var scratch = document.createElement("canvas")
+		scratch.width = sw
+		scratch.height = sh
+		var reader = scratch.getContext("2d", {willReadFrequently: true})
+		if(!reader){
+			return null
+		}
+		var read = []
+		for(var f = 0; f < frames; f++){
+			reader.clearRect(0, 0, sw, sh)
+			reader.drawImage(img, f * sw, 0, sw, sh, 0, 0, sw, sh)
+			try{
+				read.push(reader.getImageData(0, 0, sw, sh).data)
+			}catch(e){
+				return null
+			}
+		}
+		var count = sw * sh
+		var shared = new Uint8Array(count)
+		for(var i = 0; i < count; i++){
+			var same = true
+			for(var f = 1; f < frames && same; f++){
+				for(var k = 0; k < 4; k++){
+					if(read[f][i * 4 + k] !== read[0][i * 4 + k]){
+						same = false
+						break
+					}
+				}
+			}
+			shared[i] = same ? 1 : 0
+		}
+		var layer = (source, keep) => {
+			var canvas = document.createElement("canvas")
+			canvas.width = sw
+			canvas.height = sh
+			var out = canvas.getContext("2d")
+			var pixels = out.createImageData(sw, sh)
+			for(var i = 0; i < count; i++){
+				if(shared[i] === keep){
+					for(var k = 0; k < 4; k++){
+						pixels.data[i * 4 + k] = source[i * 4 + k]
+					}
+				}
+			}
+			out.putImageData(pixels, 0, 0)
+			return canvas
+		}
+		this.crownParts[key] = {
+			crown: layer(read[0], 1),
+			emblems: read.map(frame => layer(frame, 0))
+		}
+		return this.crownParts[key]
 	}
 	
 	/*
@@ -1513,7 +1609,7 @@
 	 * canvas filter in the middle of a frame that draws a dozen crowns,
 	 * and the whole loop is only twenty small images.
 	 */
-	rainbowCrown(img, sx, sw, sh, key){
+	hueTurned(source, sx, sw, sh, key){
 		if(!this.crownTurns){
 			this.crownTurns = {}
 		}
@@ -1535,7 +1631,7 @@
 			return null
 		}
 		scratch.filter = "hue-rotate(" + Math.round(step * 360 / steps) + "deg)"
-		scratch.drawImage(img, sx, 0, sw, sh, 0, 0, sw, sh)
+		scratch.drawImage(source, sx, 0, sw, sh, 0, 0, sw, sh)
 		this.crownTurns[id] = canvas
 		return canvas
 	}
