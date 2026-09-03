@@ -18,11 +18,17 @@ set -euo pipefail
 toplevel=$( git rev-parse --show-toplevel )
 
 # Tracked and untracked, ignored files excluded: the same set the image
-# is built from.
+# is built from. A path git still has in the index but that is no longer
+# on disk is skipped rather than failing the build -- deleting a file is
+# a change like any other, and the hash moves because of what is left.
 content=$(
-    cd "$toplevel" && git ls-files -z --cached --others --exclude-standard \
+    cd "$toplevel" \
+    && git ls-files -z --cached --others --exclude-standard \
         -- public/src public/assets templates \
-    | sort -z | xargs -0 -r sha1sum | sha1sum | cut -c1-8
+    | while IFS= read -r -d "" file; do
+        [ -f "$file" ] && printf '%s\n' "$file"
+    done \
+    | LC_ALL=C sort | tr '\n' '\0' | xargs -0 -r sha1sum | sha1sum | cut -c1-8
 )
 
 git -C "$toplevel" log -1 \
