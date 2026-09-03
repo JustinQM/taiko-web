@@ -311,7 +311,7 @@
 				clear: gaugePercent >= this.rules.gaugeClear,
 				rainbow: gaugePercent >= 1
 			})
-			this.background.draw(ctx, frameLeft, frameTop)
+			this.background.draw(ctx, frameLeft, frameTop, winW)
 		}
 		if(touchMultiplayer){
 			if(!this.touchp2Class){

@@ -1253,6 +1253,15 @@ var translations = {
 				ko: "가사 표시하기"
 			}
 		},
+		minimalBackground: {
+			name: {
+				ja: "シンプル背景",
+				en: "Minimal Background",
+				cn: "简约背景",
+				tw: "簡約背景",
+				ko: "간단한 배경"
+			}
+		},
 		on: {
 			ja: "オン",
 			en: "On",

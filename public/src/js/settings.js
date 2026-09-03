@@ -97,6 +97,13 @@ class Settings{
 			showLyrics: {
 				type: "toggle",
 				default: true
+			},
+			// The gameplay background as YataiDON draws it has dancers,
+			// characters running across on every hit, and a good deal of
+			// motion. Not everyone wants that behind the notes.
+			minimalBackground: {
+				type: "toggle",
+				default: false
 			}
 		}
 		

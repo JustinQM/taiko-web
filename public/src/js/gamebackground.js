@@ -131,6 +131,7 @@ class BgTex{
  */
 class DonBG{
 	constructor(background, index, half){
+		this.background = background
 		this.tex = background.tex("donbg/" + index + "_" + half)
 		this.manifest = background.manifest
 		var info = this.tex.info("background")
@@ -165,18 +166,41 @@ class DonBG{
 	}
 	
 	/*
+	 * Where a tiled layer goes, across the whole window.
+	 *
+	 * The skin counts its tiles for a 1280-wide screen -- five of the
+	 * band, thirty-one of the footer. The window is usually wider than
+	 * the frame the art is drawn for, so the count comes from the width
+	 * instead and the phase comes from the scroll, which is the same
+	 * thing the fixed counts were.
+	 */
+	tiles(width, offset){
+		var span = this.background.span
+		var out = []
+		if(!(width > 0)){
+			return out
+		}
+		var x = Math.floor((span.left - offset) / width) * width + offset
+		for(; x < span.right; x += width){
+			out.push(x)
+		}
+		return out
+	}
+	
+	/*
 	 * taiko-web's lanes stop 38px higher than YataiDON's, so the band is
 	 * repeated downwards until it reaches them. The decoration on top of
 	 * it is drawn once, where the skin puts it.
 	 */
-	drawBand(ctx, fade, y, frame, across){
+	drawBand(ctx, fade, y, frame){
 		var rows = Math.max(1, Math.ceil(GameBackground.TOP / this.bgHeight))
+		var xs = this.tiles(this.bgWidth, this.move.attribute)
 		for(var row = 0; row < rows; row++){
-			for(var i = 0; i < across; i++){
+			for(var i = 0; i < xs.length; i++){
 				this.tex.draw(ctx, "background", {
 					frame: frame,
 					fade: fade,
-					x: i * this.bgWidth + this.move.attribute,
+					x: xs[i],
 					y: y + row * this.bgHeight
 				})
 			}
@@ -184,7 +208,7 @@ class DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 5)
+		this.drawBand(ctx, fade, y, frame)
 	}
 	
 	draw(ctx, y){
@@ -193,7 +217,7 @@ class DonBG{
 		// Repeating the band leaves it a little longer than the gap it
 		// fills; the scene below it should stay the top layer there.
 		ctx.beginPath()
-		ctx.rect(0, 0, 1280, GameBackground.TOP)
+		ctx.rect(this.background.span.left, 0, this.background.span.width, GameBackground.TOP)
 		ctx.clip()
 		this.drawTextures(ctx, 1, y, 0)
 		if(this.isClear){
@@ -218,20 +242,20 @@ class DonBG0 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 5)
-		for(var i = 0; i < 6; i++){
+		this.drawBand(ctx, fade, y, frame)
+		var overlay = this.tiles(this.overlayWidth,
+			this.move.attribute * (this.overlayWidth / this.bgWidth))
+		for(var i = 0; i < overlay.length; i++){
 			this.tex.draw(ctx, "overlay", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlayWidth + this.move.attribute * (this.overlayWidth / this.bgWidth),
+				frame: frame, fade: fade, x: overlay[i],
 				y: y + this.overlayMove.attribute
 			})
 		}
-		for(var i = 0; i < 31; i++){
+		var footer = this.tiles(this.footerWidth,
+			this.move.attribute * (this.footerWidth / this.bgWidth) * 3)
+		for(var i = 0; i < footer.length; i++){
 			this.tex.draw(ctx, "footer", {
-				frame: frame,
-				fade: fade,
-				x: i * this.footerWidth + this.move.attribute * (this.footerWidth / this.bgWidth) * 3,
+				frame: frame, fade: fade, x: footer[i],
 				y: y + this.overlayMove.attribute
 			})
 		}
@@ -252,12 +276,11 @@ class DonBG1 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 5)
-		for(var i = 0; i < 5; i++){
+		this.drawBand(ctx, fade, y, frame)
+		var overlay = this.tiles(this.overlayWidth, this.move.attribute)
+		for(var i = 0; i < overlay.length; i++){
 			this.tex.draw(ctx, "overlay", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlayWidth + this.move.attribute,
+				frame: frame, fade: fade, x: overlay[i],
 				y: y + this.overlayMove.attribute
 			})
 		}
@@ -291,15 +314,13 @@ class DonBG2 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 11)
+		this.drawBand(ctx, fade, y, frame)
 		var offset = this.bounceUp.attribute - this.bounceDown.attribute +
 			this.overlayMove.attribute + this.overlayMove2.attribute
-		for(var i = 0; i < 7; i++){
+		var overlay = this.tiles(this.overlayWidth, this.move.attribute * 2)
+		for(var i = 0; i < overlay.length; i++){
 			this.tex.draw(ctx, "overlay", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlayWidth + this.move.attribute * 2,
-				y: y + offset
+				frame: frame, fade: fade, x: overlay[i], y: y + offset
 			})
 		}
 	}
@@ -319,12 +340,11 @@ class DonBG3 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 5)
-		for(var i = 0; i < 5; i++){
+		this.drawBand(ctx, fade, y, frame)
+		var overlay = this.tiles(this.overlayWidth, this.move.attribute)
+		for(var i = 0; i < overlay.length; i++){
 			this.tex.draw(ctx, "overlay", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlayWidth + this.move.attribute,
+				frame: frame, fade: fade, x: overlay[i],
 				y: y + this.overlayMove.attribute
 			})
 		}
@@ -354,14 +374,12 @@ class DonBG4 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 6)
+		this.drawBand(ctx, fade, y, frame)
 		var offset = this.bounceUp.attribute - this.bounceDown.attribute - this.adjust.attribute
-		for(var i = 0; i < 6; i++){
+		var overlay = this.tiles(this.bgWidth, this.move.attribute)
+		for(var i = 0; i < overlay.length; i++){
 			this.tex.draw(ctx, "overlay", {
-				frame: frame,
-				fade: fade,
-				x: i * this.bgWidth + this.move.attribute,
-				y: y + offset
+				frame: frame, fade: fade, x: overlay[i], y: y + offset
 			})
 		}
 	}
@@ -383,20 +401,19 @@ class DonBG5 extends DonBG{
 	}
 	
 	drawTextures(ctx, fade, y, frame){
-		this.drawBand(ctx, fade, y, frame, 5)
-		for(var i = 0; i < 6; i += 2){
+		this.drawBand(ctx, fade, y, frame)
+		// Every other tile, so the front layer is sparser than the band.
+		var front = this.tiles(this.overlay1Width * 2, this.move.attribute * 3)
+		for(var i = 0; i < front.length; i++){
 			this.tex.draw(ctx, "overlay_1", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlay1Width + this.move.attribute * 3,
+				frame: frame, fade: fade, x: front[i],
 				y: y - this.move.attribute * 0.85
 			})
 		}
-		for(var i = 0; i < 5; i++){
+		var back = this.tiles(this.overlay2Width, this.move.attribute)
+		for(var i = 0; i < back.length; i++){
 			this.tex.draw(ctx, "overlay_2", {
-				frame: frame,
-				fade: fade,
-				x: i * this.overlay2Width + this.move.attribute,
+				frame: frame, fade: fade, x: back[i],
 				y: y + this.overlayMove.attribute
 			})
 		}
@@ -935,13 +952,15 @@ class Fever{
 		}
 	}
 	
-	draw(ctx){
+	draw(ctx, span){
 		var y = this.bounceDown.attribute - this.bounceUp.attribute
 		if(this.tex.has("overlay")){
 			this.tex.draw(ctx, "overlay", {y: y})
 		}else{
-			this.tex.draw(ctx, "overlay_l", {y: y})
-			this.tex.draw(ctx, "overlay_r", {y: y})
+			// One in each bottom corner, so they follow the window's
+			// corners rather than the frame's.
+			this.tex.draw(ctx, "overlay_l", {x: span.left, y: y})
+			this.tex.draw(ctx, "overlay_r", {x: span.right - 1280, y: y})
 		}
 	}
 }
@@ -1188,7 +1207,7 @@ class DancerGroup{
 		}
 	}
 	
-	draw(ctx){
+	draw(ctx, span){
 		var first = null
 		for(var i = 0; i < this.maxDancers; i++){
 			if(this.activeDancers[i]){
@@ -1200,13 +1219,15 @@ class DancerGroup{
 			return
 		}
 		// The slots are laid out for a full set whether or not it is
-		// full, so a dancer stands in the same place all song.
+		// full, so a dancer stands in the same place all song, and they
+		// are spread across the window rather than across the frame.
 		var info = this.tex.info(first.index + "_loop")
 		var width = info ? info.w : 0
-		var spacing = (1280 - this.maxDancers * width) / (this.maxDancers + 1)
+		var spacing = (span.width - this.maxDancers * width) / (this.maxDancers + 1)
 		for(var i = 0; i < this.maxDancers; i++){
 			if(this.activeDancers[i]){
-				this.activeDancers[i].draw(ctx, Math.floor(spacing + i * (width + spacing)))
+				this.activeDancers[i].draw(ctx,
+					Math.floor(span.left + spacing + i * (width + spacing)))
 			}
 		}
 	}
@@ -1220,8 +1241,14 @@ class BgFooter{
 		this.index = index
 	}
 	
-	draw(ctx){
-		this.tex.draw(ctx, String(this.index))
+	// A repeating pattern, so a window wider than the frame gets more of
+	// it rather than a black strip at each end.
+	draw(ctx, span){
+		var info = this.tex.info(String(this.index))
+		var width = info ? info.w : 1280
+		for(var x = Math.floor(span.left / width) * width; x < span.right; x += width){
+			this.tex.draw(ctx, String(this.index), {x: x})
+		}
 	}
 }
 
@@ -1236,7 +1263,10 @@ class BgRenda{
 		this.index = index
 		this.key = "renda_" + index
 		this.random = controller.random
-		this.horiMove = new BgMove(1500, {total_distance: 1280})
+		var span = controller.span()
+		this.horiMove = new BgMove(1500, {
+			start_position: span.left, total_distance: span.width
+		})
 		this.horiMove.start()
 	}
 	
@@ -1328,10 +1358,15 @@ class BgRenda2 extends BgRenda{
 
 class RendaController{
 	constructor(background, index){
+		this.background = background
 		this.tex = background.tex("renda")
 		this.random = background.random
 		this.index = index
 		this.rendas = []
+	}
+	
+	span(){
+		return this.background.span
 	}
 	
 	add(){
@@ -1390,7 +1425,10 @@ class BgChibi{
 	}
 	
 	build(bpm){
-		this.horiMove = new BgMove(60000 / bpm * 5, {total_distance: 1280})
+		var span = this.controller.background.span
+		this.horiMove = new BgMove(60000 / bpm * 5, {
+			start_position: span.left, total_distance: span.width
+		})
 		this.horiMove.start()
 		this.vertMove = new BgMove(60000 / bpm / 2, {total_distance: 50, reverse_delay: 0, loop: true})
 		this.vertMove.start()
@@ -1534,7 +1572,10 @@ class BgChibiBad extends BgChibi{
 	
 	buildBad(bpm){
 		var duration = (60000 / bpm) / 2
-		this.horiMove = new BgMove(duration * 10, {total_distance: 1280})
+		var span = this.controller.background.span
+		this.horiMove = new BgMove(duration * 10, {
+			start_position: span.left, total_distance: span.width
+		})
 		this.horiMove.start()
 		this.vertMove = new BgMove(duration, {total_distance: 50, reverse_delay: 0, loop: true})
 		this.vertMove.start()
@@ -1579,6 +1620,7 @@ class BgChibiBad extends BgChibi{
 
 class ChibiController{
 	constructor(background, index, bpm){
+		this.background = background
 		this.tex = background.tex("chibi/chibi_" + index)
 		this.badTex = background.tex("chibi/chibi_bad")
 		this.random = background.random
@@ -1681,7 +1723,22 @@ class GameBackground{
 		this.isClear = false
 		this.isRainbow = false
 		this.lastMilestone = 1
+		this.minimal = GameBackground.minimal()
+		// The window is usually wider than the 1280 frame the art is
+		// drawn for. Replaced with the real one on the first frame; a
+		// default is here because a character can be thrown onto the
+		// screen before anything has been drawn.
+		this.span = {left: 0, right: 1280, width: 1280}
 		this.ready = true
+	}
+	
+	/*
+	 * The still background: the scene, the band above the lanes and the
+	 * footer, with nothing moving in front of them. For players who find
+	 * dancers and characters behind the notes distracting.
+	 */
+	static minimal(){
+		return typeof settings !== "undefined" && !!settings.getItem("minimalBackground")
 	}
 	
 	tex(folder){
@@ -1702,12 +1759,14 @@ class GameBackground{
 		this.random = new BgRandom(GameBackground.seed(this.song))
 		this.donbg = DonBG.create(this, this.choice.donSet, this.view.player === 2 ? 2 : 1)
 		this.bgNormal = BGNormal.create(this, this.choice.bgSet)
-		this.bgFever = BGFever.create(this, this.choice.feverSet)
-		this.feverFx = new Fever(this, this.choice.feverFxSet, bpm)
-		this.dancers = DancerGroup.create(this, this.choice.dancerSet, bpm, 5)
 		this.footer = new BgFooter(this, this.choice.footer)
-		this.renda = new RendaController(this, this.choice.rendaSet)
-		this.chibi = new ChibiController(this, this.choice.chibiSet, bpm)
+		if(!this.minimal){
+			this.bgFever = BGFever.create(this, this.choice.feverSet)
+			this.feverFx = new Fever(this, this.choice.feverFxSet, bpm)
+			this.dancers = DancerGroup.create(this, this.choice.dancerSet, bpm, 5)
+			this.renda = new RendaController(this, this.choice.rendaSet)
+			this.chibi = new ChibiController(this, this.choice.chibiSet, bpm)
+		}
 		this.built = true
 	}
 	
@@ -1750,14 +1809,20 @@ class GameBackground{
 			"donbg/" + choice.donSet + "_1",
 			"donbg/" + choice.donSet + "_2",
 			"bg_normal/bg_" + choice.bgSet,
-			"bg_fever/bg_fever_" + choice.feverSet,
-			"fever/fever_" + choice.feverFxSet,
-			"dancer/dancer_" + choice.dancerSet,
-			"chibi/chibi_" + choice.chibiSet,
-			"chibi/chibi_bad",
-			"footer",
-			"renda"
+			"footer"
 		]
+		// A still background draws none of the rest, so none of it is
+		// worth fetching either.
+		if(!GameBackground.minimal()){
+			folders.push(
+				"bg_fever/bg_fever_" + choice.feverSet,
+				"fever/fever_" + choice.feverFxSet,
+				"dancer/dancer_" + choice.dancerSet,
+				"chibi/chibi_" + choice.chibiSet,
+				"chibi/chibi_bad",
+				"renda"
+			)
+		}
 		var prefixes = folders.map(folder => "yatai_" + folder.replace(/\//g, "_") + "_")
 		var wanted = []
 		for(var name in manifest.assets){
@@ -1779,6 +1844,11 @@ class GameBackground{
 		this.ms = ms
 		if(!this.built){
 			this.build()
+		}
+		if(this.minimal){
+			// Nothing is updated, so nothing advances past its first
+			// frame: the scene, the band and the footer, held still.
+			return
 		}
 		var bpm = this.bpm()
 		this.donbg.update(ms)
@@ -1825,19 +1895,19 @@ class GameBackground{
 	}
 	
 	handleHit(){
-		if(this.built){
+		if(this.built && !this.minimal){
 			this.chibi.add(false)
 		}
 	}
 	
 	handleMiss(){
-		if(this.built){
+		if(this.built && !this.minimal){
 			this.chibi.add(true)
 		}
 	}
 	
 	handleRoll(){
-		if(this.built){
+		if(this.built && !this.minimal){
 			this.renda.add()
 		}
 	}
@@ -1847,13 +1917,57 @@ class GameBackground{
 	 * order YataiDON draws it: the scene, the band above the lanes, then
 	 * everything that moves in front of them.
 	 */
-	draw(ctx, left, top){
+	draw(ctx, left, top, winW){
 		if(!this.ready || !this.built){
 			return
 		}
+		// The art is drawn for a 1280-wide frame and the window is
+		// usually wider, which used to leave a black bar down each side.
+		// Each layer reaches the edges in the way that suits it: the
+		// band and the footer tile, the scene is scaled to cover, and
+		// anything that crosses the screen crosses all of it.
+		var edge = Math.max(0, ((winW || 1280) - 1280) / 2)
+		var span = {left: -edge, right: 1280 + edge, width: 1280 + edge * 2}
+		this.span = span
+		
 		ctx.save()
 		ctx.translate(left, top)
-		if(this.isClear){
+		this.drawScene(ctx, span)
+		this.donbg.draw(ctx, 0)
+		if(!this.minimal){
+			this.renda.draw(ctx)
+			this.dancers.draw(ctx, span)
+		}
+		this.footer.draw(ctx, span)
+		if(!this.minimal){
+			if(this.isRainbow){
+				this.feverFx.draw(ctx, span)
+			}
+			this.chibi.draw(ctx)
+		}
+		ctx.restore()
+	}
+	
+	/*
+	 * The scene below the lanes, scaled to cover the window rather than
+	 * stretched to it: it is a picture, and a stretch on it shows. The
+	 * DOM background this replaced did the same with background-size,
+	 * and cropped the same way.
+	 */
+	drawScene(ctx, span){
+		var top = GameBackground.TOP
+		ctx.save()
+		ctx.beginPath()
+		ctx.rect(span.left, top, span.width, 720 - top)
+		ctx.clip()
+		if(span.width > 1280){
+			var scale = span.width / 1280
+			var middle = (top + 720) / 2
+			ctx.translate(640, middle)
+			ctx.scale(scale, scale)
+			ctx.translate(-640, -middle)
+		}
+		if(!this.minimal && this.isClear){
 			// The standard scene keeps drawing underneath until the
 			// fever one has finished arriving.
 			if(!this.bgFever.transitioned){
@@ -1863,14 +1977,6 @@ class GameBackground{
 		}else{
 			this.bgNormal.draw(ctx)
 		}
-		this.donbg.draw(ctx, 0)
-		this.renda.draw(ctx)
-		this.dancers.draw(ctx)
-		this.footer.draw(ctx)
-		if(this.isRainbow){
-			this.feverFx.draw(ctx)
-		}
-		this.chibi.draw(ctx)
 		ctx.restore()
 	}
 }

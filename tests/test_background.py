@@ -67,7 +67,7 @@ SPY = """() => {
     }
 }"""
 
-BUILD = """() => {
+BUILD = """(winW) => {
     window.__ctx = document.createElement("canvas").getContext("2d")
     window.__bg = new GameBackground({
         controller: {selectedSong: {title: "test song", hash: "test"}},
@@ -77,19 +77,22 @@ BUILD = """() => {
     window.__frame = (ms, gauge) => {
         __bg.update(ms, gauge)
         window.__drawn = []
-        __bg.draw(__ctx, 0, 0)
+        __bg.draw(__ctx, (winW - 1280) / 2, 0, winW)
         return window.__drawn
     }
 }"""
 
 
-@pytest.fixture
-def background(game):
-    page = game.page
+def build(page, win_width=1280):
     page.evaluate(MANIFEST)
     page.evaluate(SPY)
-    page.evaluate(BUILD)
+    page.evaluate(BUILD, win_width)
     return page
+
+
+@pytest.fixture
+def background(game):
+    return build(game.page)
 
 
 def gauge(progress, clear=False, rainbow=False):
@@ -239,3 +242,71 @@ def test_hits_and_misses_put_characters_on_the_screen(background):
     }""")
     assert counts[0] == 2 and counts[1] == 1
     assert counts[2] == 0 and counts[3] == 0, "they were never dropped"
+
+
+def test_the_background_reaches_the_edges_of_a_wide_window(game):
+    """The art is drawn for a 1280-wide frame and most windows are wider.
+    It used to stop at the frame, leaving a black bar down each side --
+    which is what the canvas background does when nothing is drawn.
+
+    Every layer has to reach the edges: the band and the footer by
+    tiling, the scene by being scaled to cover."""
+    page = build(game.page, 1600)
+    drawn = page.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.2)])
+    band = [d for d in drawn if d["key"] == "background" and "donbg" in d["tex"]]
+    footer = [d["params"].get("x", 0) for d in drawn if "yatai_footer" in d["tex"]]
+    reach = max(d["params"].get("x", 0) for d in band)
+    assert reach >= 1280, f"the band stops at {reach} in a 1600 window"
+    assert min(d["params"].get("x", 0) for d in band) <= -160
+    assert max(footer) >= 1280, "the footer stops short of the right edge"
+    assert min(footer) <= -160, "the footer stops short of the left edge"
+
+
+def test_a_frame_sized_window_is_left_alone(background):
+    """Nothing is scaled and nothing reaches past the frame when there
+    is nothing to fill."""
+    drawn = background.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.2)])
+    footer = [d["params"].get("x", 0) for d in drawn if "yatai_footer" in d["tex"]]
+    assert footer and min(footer) == 0
+    assert max(footer) < 1280
+    assert background.evaluate("() => __bg.span") == {
+        "left": 0, "right": 1280, "width": 1280}
+
+
+def test_the_minimal_background_drops_everything_that_moves(game):
+    """The setting is for players who find dancers and characters behind
+    the notes distracting: the scene, the band and the footer stay, and
+    nothing else is drawn or even built."""
+    game.page.evaluate("() => settings.setItem('minimalBackground', true)")
+    page = build(game.page)
+    drawn = page.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.9, clear=True)])
+    prefixes = {d["tex"] for d in drawn}
+    assert any("donbg" in p for p in prefixes)
+    assert any("bg_normal" in p for p in prefixes)
+    assert any("yatai_footer" in p for p in prefixes)
+    for absent in ["dancer", "chibi", "renda", "bg_fever", "_fever_fever_"]:
+        assert not any(absent in p for p in prefixes), f"{absent} was drawn"
+    built = page.evaluate("() => [!!__bg.dancers, !!__bg.chibi, !!__bg.renda]")
+    assert built == [False, False, False]
+
+
+def test_the_minimal_background_is_not_fetched_either(game):
+    game.page.evaluate("() => settings.setItem('minimalBackground', true)")
+    page = build(game.page)
+    wanted = page.evaluate("""() => GameBackground.assetsFor(
+        {title: "a song", hash: "abc"}, assets.backgrounds)""")
+    assert not any("dancer" in name for name in wanted)
+    assert any("bg_normal" in name for name in wanted)
+
+
+def test_a_hit_puts_nothing_on_a_minimal_background(game):
+    game.page.evaluate("() => settings.setItem('minimalBackground', true)")
+    page = build(game.page)
+    page.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.2)])
+    errors = page.evaluate("""() => {
+        try {
+            __bg.handleHit(); __bg.handleMiss(); __bg.handleRoll()
+            return null
+        } catch(e) { return String(e) }
+    }""")
+    assert errors is None
