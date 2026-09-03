@@ -498,7 +498,14 @@
 				var offsetY = drawnHeight > config.height ? 0 : (config.height - drawnHeight) / 2
 			}else{
 				strokeScaling = scaling
-				ctx.scale(1, scaling)
+				// Text that does not fit used to be flattened into the
+				// space, and past about half height letters stop reading
+				// as letters -- which is what a long song title looked
+				// like down the side of its box. Narrowing by the same
+				// amount past that point keeps the shape of them and
+				// makes the line smaller instead. The column is centred
+				// on the origin, so this needs no re-centring.
+				ctx.scale(Math.min(1, scaling / 0.7), scaling)
 			}
 			if(config.selectable){
 				style.transform = "scale(1, " + scaling + ")"
