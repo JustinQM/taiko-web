@@ -1539,8 +1539,8 @@
 	 * The crown apart from the difficulty emblem beside it.
 	 *
 	 * The five frames are one crown with a different emblem on each, so
-	 * the pixels that are identical in all five are the crown and the
-	 * rest is the emblem. Splitting them lets the rainbow turn without
+	 * the pixels most of the frames agree on are the crown and the rest
+	 * is the emblem. Splitting them lets the rainbow turn without
 	 * dragging the emblem round with it: a green leaf cycling through
 	 * purple stops saying which difficulty it is.
 	 *
@@ -1584,20 +1584,35 @@
 		// from. A majority ignores the odd frame out.
 		var count = sw * sh
 		var crown = new Uint8ClampedArray(count * 4)
+		// Near enough, rather than the same. The five frames were drawn
+		// one at a time and their edges antialiased one at a time with
+		// them, so the crown's black outline is a slightly different
+		// alpha in each -- 224 here, 240 there, 255 in the next. Held to
+		// an exact match a fifth of the crown fails it, nearly all of it
+		// outline, and the outline then rides along in the emblem layer:
+		// drawn flat over a crown whose own outline had turned with the
+		// rainbow, which is the doubled, washed-out edge in the report.
+		var alike = (a, b, i) => {
+			if(a[i * 4 + 3] === 0 && b[i * 4 + 3] === 0){
+				// Both invisible. What is under a zero alpha is not
+				// worth comparing, and png writers do not agree on it.
+				return true
+			}
+			for(var k = 0; k < 4; k++){
+				var d = a[i * 4 + k] - b[i * 4 + k]
+				if(d > 40 || d < -40){
+					return false
+				}
+			}
+			return true
+		}
 		for(var i = 0; i < count; i++){
 			var best = 0
 			var bestCount = 0
 			for(var f = 0; f < frames; f++){
 				var agree = 0
 				for(var g = 0; g < frames; g++){
-					var same = true
-					for(var k = 0; k < 4; k++){
-						if(read[f][i * 4 + k] !== read[g][i * 4 + k]){
-							same = false
-							break
-						}
-					}
-					if(same){
+					if(alike(read[f], read[g], i)){
 						agree++
 					}
 				}
@@ -1620,14 +1635,7 @@
 		}
 		// Everything a frame does not share with that majority is its
 		// emblem, including the soft edge where it meets the crown.
-		var differs = (source, i) => {
-			for(var k = 0; k < 4; k++){
-				if(source[i * 4 + k] !== crown[i * 4 + k]){
-					return true
-				}
-			}
-			return false
-		}
+		var differs = (source, i) => !alike(source, crown, i)
 		var layer = (source, keep) => {
 			var canvas = document.createElement("canvas")
 			canvas.width = sw
