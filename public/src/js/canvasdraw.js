@@ -1494,10 +1494,22 @@
 		var frames = config.type && variant === "box" ? 5 : 1
 		var frame = Math.max(0, Math.min(frames - 1, config.frame || 0))
 		var sw = img.naturalWidth / frames
-		// Drawn at its own aspect, filling the width of the box the
-		// caller's scale is measured against, so nothing is flattened.
-		var height = 94 * img.naturalHeight / sw
 		var sh = img.naturalHeight
+		// How wide the crown comes out, in the 94-wide box everything
+		// positions against.
+		var box = 94
+		if(!config.type && variant === "box"){
+			// The outline is the small crown's frame, where the crown
+			// fills most of it; the opened box's art is a smaller crown
+			// with room beside it for the difficulty emblem. Drawn at the
+			// same nominal size the empty slot came out half again bigger
+			// than the ones next to it -- and softer, being blown up
+			// further from smaller art. This is the ratio between the two
+			// crowns, so an empty slot matches a filled one.
+			box = 94 * 0.69
+		}
+		// Drawn at its own aspect, so nothing is flattened.
+		var height = box * sh / sw
 		// Usually one draw of the frame. A turning rainbow in the opened
 		// box is two: the crown, hue-shifted, and the difficulty's emblem
 		// over it at the colour it is meant to be.
@@ -1516,8 +1528,9 @@
 				}
 			}
 		}
+		var left = (94 - box) / 2
 		for(var i = 0; i < draws.length; i++){
-			ctx.drawImage(draws[i][0], draws[i][1], 0, sw, sh, 0, 39 - height / 2, 94, height)
+			ctx.drawImage(draws[i][0], draws[i][1], 0, sw, sh, left, 39 - height / 2, box, height)
 		}
 		return true
 	}

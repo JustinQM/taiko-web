@@ -511,3 +511,60 @@ def test_back_inside_a_folder_goes_up_one(wheel):
     wheel.page.wait_for_function(
         "() => __ss.navigator.path.length === 0", timeout=5000)
     assert wheel.page.evaluate("() => !!__ss.redrawRunning") is True
+
+
+def test_clicking_favourite_does_not_take_the_screen_away(wheel):
+    """The keyboard has always had a case for it; the mouse did not, so
+    the click fell through to 'load this difficulty' with an index of
+    -1 -- and toLoadSong tears song select down before it finds out
+    there is no such course. The game froze on a blank screen."""
+    wheel.enter_folder()
+    wheel.settle()
+    wheel.page.evaluate("() => __ss.toSelectDifficulty()")
+    wheel.page.wait_for_function(
+        "() => __ss.state.screen === 'difficulty'", timeout=8000)
+
+    result = wheel.page.evaluate("""() => {
+        const index = __ss.diffOptions.findIndex(o => o.iconName === "favorite")
+        // The middle of that option, in the coordinates diffSelMouse
+        // reads. Fed through the real dispatch by standing in for the
+        // conversion, so the branch under test is the one a click takes.
+        const spot = {x: 223 + 72 * index + 36, y: 300}
+        const real = __ss.canvasMouseOffset
+        __ss.canvasMouseOffset = () => spot
+        const song = __ss.songs[__ss.selectedSong].id
+        const before = favorites.has(song)
+        // Read before the click: after a bad one the screen is gone and
+        // every reading comes back null.
+        const hit = __ss.diffSelMouse(spot.x, spot.y)
+        try{
+            __ss.mouseDown({
+                type: "mousedown", which: 1, target: __ss.canvas,
+                clientX: 0, clientY: 0, shiftKey: false, ctrlKey: false
+            })
+        }finally{
+            __ss.canvasMouseOffset = real
+        }
+        return {
+            hit: hit,
+            index: index,
+            alive: !!__ss.redrawRunning,
+            screen: __ss.state.screen,
+            toggled: favorites.has(song) !== before
+        }
+    }""")
+    assert result["hit"] == result["index"], "the click did not land on Favourite"
+    assert result["alive"] is True, "song select was torn down"
+    assert result["screen"] == "difficulty", "it left the difficulty screen"
+    assert result["toggled"] is True, "the click did not favourite anything"
+
+
+def test_an_impossible_difficulty_is_refused(wheel):
+    """The guard behind that fix: nothing below toLoadSong survives being
+    asked for a course that does not exist, and clean() has already taken
+    the screen away by the time it would be noticed."""
+    alive = wheel.page.evaluate("""() => {
+        __ss.toLoadSong(-1)
+        return !!__ss.redrawRunning
+    }""")
+    assert alive is True

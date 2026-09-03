@@ -1391,6 +1391,13 @@ class SongSelect{
 				this.openOptionsMenu()
 			}else if(moveBy === 2){
 				this.toSound(1)
+			}else if(moveBy === 3){
+				// The keyboard has always had this; the mouse did not, so
+				// clicking Favourite fell through to the branch below and
+				// asked to load difficulty -1. That tears song select down
+				// before it finds out there is no such course, which is
+				// what froze the game.
+				this.toggleFavorite()
 			}else if(moveBy === "maker"){
 				window.open(this.songs[this.selectedSong].maker.url)
 			}else if(moveBy === this.diffOptions.length + 4){
@@ -2293,6 +2300,12 @@ class SongSelect{
 		pageEvents.send("song-select-back")
 	}
 	toLoadSong(difficulty, shift, ctrl, touch){
+		// Nothing below survives being asked for a course that does not
+		// exist -- clean() has already taken the screen away by the time
+		// it would be noticed.
+		if(!(difficulty >= 0) || difficulty > 4){
+			return
+		}
 		var selectedModifiers = this.getSelectedModifiers()
 		this.clean()
 		var selectedSong = this.songs[this.selectedSong]
