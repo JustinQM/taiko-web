@@ -262,3 +262,158 @@ def test_random_still_lands_on_its_song_with_backs_interleaved(wheel):
             return __ss.navigator.items[i].action || "song"
         }""", target)
         assert landed == "song", f"random landed on a {landed}"
+
+
+def test_a_folder_is_drawn_at_its_full_width(wheel):
+    """A folder and a song looked the same in the wheel -- an 82px slat
+    with the name down it, differing only in colour -- so there was no
+    way to see at a glance where the folders were."""
+    widths = wheel.page.evaluate("""() => {
+        const folder = __ss.songs.find(s => s.action === "folder")
+        const menu = __ss.songs.find(s => s.action && s.action !== "folder")
+        return {
+            folder: __ss.entryWidth(folder),
+            menu: __ss.entryWidth(menu),
+            slat: __ss.songAsset.width,
+            opened: __ss.songAsset.selectedWidth
+        }
+    }""")
+    assert widths["folder"] == widths["opened"]
+    assert widths["menu"] == widths["slat"], "menu entries stay slats"
+
+
+def test_the_wheel_makes_room_for_a_wide_folder(wheel):
+    """Boxes used to be placed by multiplying their index by one width.
+    With folders at a different width that stops being true, so the
+    layout is walked -- and every box has to end up clear of the one
+    before it."""
+    boxes = wheel.page.evaluate("""() => {
+        const layout = __ss.wheelLayout(__ss.selectedEntryWidth(), 0, 1280)
+        return layout.left.concat([layout.selected], layout.right)
+            .map(b => ({x: b.x, w: b.width, offset: b.offset}))
+            .sort((a, b) => a.x - b.x)
+    }""")
+    assert len(boxes) > 3
+    margin = wheel.page.evaluate("() => __ss.songAsset.marginLeft")
+    for before, after in zip(boxes, boxes[1:]):
+        gap = after["x"] - (before["x"] + before["w"])
+        assert abs(gap - margin) < 0.01, f"gap of {gap} between {before} and {after}"
+
+
+def test_clicking_past_a_folder_selects_what_was_clicked(wheel):
+    """The mouse used to divide by a fixed box width, which a folder
+    between the cursor and the pointer would throw out."""
+    agreed = wheel.page.evaluate("""() => {
+        const layout = __ss.wheelLayout(__ss.selectedEntryWidth(), 0, 1280)
+        const boxes = layout.left.concat([layout.selected], layout.right)
+        const y = __ss.songAsset.marginTop + 10
+        return boxes.map(b => ({
+            offset: b.offset,
+            hit: __ss.songSelMouse(b.x + b.width / 2, y)
+        }))
+    }""")
+    assert agreed, "no boxes to click"
+    for box in agreed:
+        assert box["hit"] == box["offset"], f"clicking {box['offset']} gave {box['hit']}"
+
+
+def test_the_position_in_the_folder_is_shown(wheel):
+    """A folder holds hundreds of songs and shows seven of them."""
+    wheel.enter_folder()
+    wheel.settle()
+    shown = wheel.page.evaluate("""() => {
+        const seen = []
+        const real = __ss.draw.layeredText
+        __ss.draw.layeredText = function(config, layers){
+            seen.push(config.text)
+            return real.call(this, config, layers)
+        }
+        try { __ss.redraw() } finally { __ss.draw.layeredText = real }
+        return seen.filter(t => / \\/ /.test(t))
+    }""")
+    assert len(shown) == 1, f"expected one position counter, saw {shown}"
+    position, total = [int(part) for part in shown[0].split(" / ")]
+    assert position >= 1 and total > position
+
+
+def test_the_position_counts_songs_rather_than_entries(wheel):
+    """Back boxes are interleaved every ten songs and are not songs."""
+    wheel.enter_folder()
+    wheel.settle()
+    counted = wheel.page.evaluate("""() => {
+        let text = null
+        const real = __ss.draw.layeredText
+        __ss.draw.layeredText = function(config, layers){
+            if(/ \\/ /.test(config.text)) text = config.text
+            return real.call(this, config, layers)
+        }
+        try { __ss.redraw() } finally { __ss.draw.layeredText = real }
+        return {
+            text: text,
+            entries: __ss.songs.length,
+            songs: __ss.songs.filter(s => !s.action).length
+        }
+    }""")
+    assert counted["text"].endswith("/ " + str(counted["songs"]))
+    assert counted["songs"] < counted["entries"], "no back boxes to exclude"
+
+
+def test_no_position_at_the_root(wheel):
+    """The root is folders and menu items; a position among those means
+    nothing."""
+    shown = wheel.page.evaluate("""() => {
+        const seen = []
+        const real = __ss.draw.layeredText
+        __ss.draw.layeredText = function(config, layers){
+            seen.push(config.text)
+            return real.call(this, config, layers)
+        }
+        try { __ss.redraw() } finally { __ss.draw.layeredText = real }
+        return seen.filter(t => / \\/ /.test(t))
+    }""")
+    assert shown == []
+
+
+CROWN_SPY = """() => {
+    window.__crowns = []
+    const real = __ss.draw.crown
+    __ss.draw.crown = function(config){
+        window.__crowns.push({size: config.size, variant: config.variant, y: config.y})
+        return real.call(this, config)
+    }
+    __ss.redraw()
+    __ss.draw.crown = real
+    return window.__crowns
+}"""
+
+
+@pytest.fixture
+def scored(wheel):
+    """Inside a folder, on a song with a crown on every difficulty."""
+    wheel.enter_folder()
+    wheel.page.evaluate("""() => {
+        const fake = {}
+        for(const d of ["easy", "normal", "hard", "oni"]) fake[d] = {crown: "gold"}
+        scoreStorage.get = () => fake
+        scoreStorage.getP2 = () => fake
+    }""")
+    wheel.settle()
+    return wheel
+
+
+def test_crowns_are_drawn_at_the_skins_sizes(scored):
+    """They were drawn as a fraction of the fallback path's box, which
+    made both of them small: 23px inside the opened box where the skin
+    has 56, and 28 above a closed one where the skin has 40."""
+    sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
+    assert ("box", 56) in sizes, sizes
+    assert ("small", 40) in sizes, sizes
+
+
+def test_crowns_shrink_when_two_players_share_the_row(scored):
+    """In a session each difficulty carries two crowns side by side, and
+    two of the skin's do not fit."""
+    scored.page.evaluate("() => { p2.session = true; p2.player = 1 }")
+    sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
+    assert all(size <= 28 for _, size in sizes), sizes
+    assert all(variant == "small" for variant, _ in sizes), sizes

@@ -199,6 +199,12 @@ class SongSelect{
 		this.sessionCache = new CanvasCache(noSmoothing)
 		this.currentSongCache = new CanvasCache(noSmoothing)
 		this.nameplateCache = new CanvasCache(noSmoothing)
+		// Folder names are drawn across a box five times the width of a
+		// song's, so they cannot share the song title atlas: its slots
+		// are cut to the width of a slat, and a folder asking for one
+		// took the space of seven songs and left the rest drawing over
+		// each other. That is the mess that appears while scrolling.
+		this.folderTitleCache = new CanvasCache(noSmoothing)
 		
 		this.difficulty = [strings.easy, strings.normal, strings.hard, strings.oni]
 		this.difficultyId = ["easy", "normal", "hard", "oni", "ura"]
@@ -324,8 +330,15 @@ class SongSelect{
 			// heard as a drone.
 			soundInterval: 220,
 			// The selected box opening, which is its own animation rather
-			// than part of the step. YataiDON's numbers.
-			expandDelay: 133,
+			// than part of the step.
+			//
+			// How long you have to stay on a song before it opens, counted
+			// from the moment the wheel comes to rest. The skin's is 133;
+			// this is longer on purpose, so that opening reads as a decision
+			// to look at something rather than as something the wheel does
+			// to every box you pass.
+			expandDelay: 300,
+			// How long it takes to open once it starts, which is the skin's.
 			expandDuration: 233
 		}
 		
@@ -570,6 +583,7 @@ class SongSelect{
 				this.songs[selectedSong] = this.addSong(currentSong)
 				this.currentSongCache.clear()
 				this.songTitleCache.clear()
+				this.folderTitleCache.clear()
 			}
 		}).catch(e => {
 			assetSong.tjaTitleFailed = true
@@ -1463,19 +1477,20 @@ class SongSelect{
 	
 	songSelMouse(x, y){
 		if(this.state.locked === 0 && this.songAsset.marginTop <= y && y <= this.songAsset.marginTop + this.songAsset.height){
-			x -= 1280 / 2
-			var dir = x > 0 ? 1 : -1
-			x = Math.abs(x)
-			var selectedWidth = this.songAsset.selectedWidth
-			if(!this.songs[this.selectedSong].courses){
-				selectedWidth = this.songAsset.width
+			var selectedWidth = this.selectedEntryWidth()
+			// The same walk the wheel is drawn with, so a folder sitting
+			// between the cursor and the pointer does not throw the count
+			// out. The margin either side of a box counts as part of it,
+			// which is how the old arithmetic behaved.
+			var layout = this.wheelLayout(selectedWidth, 0, 1280)
+			var margin = this.songAsset.marginLeft / 2
+			var boxes = layout.left.concat([layout.selected], layout.right)
+			for(var b = 0; b < boxes.length; b++){
+				if(boxes[b].x - margin <= x && x <= boxes[b].x + boxes[b].width + margin){
+					return boxes[b].offset
+				}
 			}
-			var moveBy = Math.ceil((x - selectedWidth / 2 - this.songAsset.marginLeft / 2) / (this.songAsset.width + this.songAsset.marginLeft)) * dir
-			if(moveBy / dir > 0){
-				return moveBy
-			}else{
-				return 0
-			}
+			return 0
 		}
 		return null
 	}
@@ -1822,11 +1837,172 @@ class SongSelect{
 		return !!(p2.session && song.action && !this.entryHandlesSessionItself(song))
 	}
 	
+	/*
+	 * Where you are in the folder you are in.
+	 *
+	 * A folder can hold five hundred songs and the wheel shows you seven
+	 * of them, so there is nothing to say whether you are near the start
+	 * or near the end. YataiDON has a counter in this corner but it
+	 * counts something else -- how many songs you have played this
+	 * credit -- so this is ours.
+	 *
+	 * Only inside a folder: at the root the entries are folders and menu
+	 * items, and a position among those means nothing. Back boxes are not
+	 * counted either, for the same reason.
+	 */
+	drawListingPosition(ctx, frameTop, winW){
+		if(!this.navigator || !this.navigator.path.length){
+			return
+		}
+		var total = 0
+		var position = 0
+		for(var i = 0; i < this.songs.length; i++){
+			if(this.songs[i].action){
+				continue
+			}
+			total++
+			if(i <= this.selectedSong){
+				position = total
+			}
+		}
+		if(!total){
+			return
+		}
+		// In the strip below the wheel. The header is full -- the title
+		// on one side, the folder name and its arrows in the middle, the
+		// leaderboard in the corner -- and this is the one band that is
+		// empty at every window width.
+		this.draw.layeredText({
+			ctx: ctx,
+			text: position + " / " + total,
+			fontSize: 30,
+			fontFamily: this.font,
+			x: winW / 2,
+			y: frameTop + this.songAsset.marginTop + this.songAsset.height + 8,
+			width: 400,
+			align: "center",
+			forceShadow: true
+		}, [
+			{outline: "#000", letterBorder: 9, shadow: [2, 2, 2]},
+			{fill: "#fff"}
+		])
+	}
+	
 	// Folders group songs; they are not songs. Category jump steps between
 	// runs of one category, which inside a folder is the whole listing, so
 	// at the root it steps between folders instead.
 	entryIsFolder(song){
 		return !!song && song.action === "folder"
+	}
+	
+	/*
+	 * A folder's name, written across its box.
+	 *
+	 * A folder is wide enough to read a name the way names are read, and
+	 * turning it on its side was only ever a consequence of the box being
+	 * a slat. It also has to come out of its own cache: the atlas the
+	 * song titles share has slots cut to the width of a slat, and a
+	 * folder asking for one took the room of seven songs and left the
+	 * rest drawing over each other -- which is the mess that appears
+	 * while scrolling past folders.
+	 */
+	drawFolderTitle(ctx, x, y, w, h, text, outline){
+		this.folderTitleCache.get({
+			ctx: ctx,
+			x: x,
+			y: y + (h - 90) / 2,
+			w: w,
+			h: 90,
+			id: text + outline
+		}, ctx => {
+			this.draw.layeredText({
+				ctx: ctx,
+				text: text,
+				fontSize: 52,
+				fontFamily: this.font,
+				x: w / 2,
+				y: 12,
+				width: w - 40,
+				align: "center",
+				forceShadow: true
+			}, [
+				{outline: outline, letterBorder: this.songAsset.letterBorder, shadow: [3, 3, 3]},
+				{fill: "#fff"}
+			])
+		})
+	}
+	
+	/*
+	 * How wide the selected box ends up, once it has finished opening.
+	 *
+	 * The renderer and the mouse both need this and they used to decide
+	 * it separately -- which was survivable while only songs were ever
+	 * wide, and stopped being so the moment a folder was.
+	 */
+	selectedEntryWidth(){
+		var selected = this.songs[this.selectedSong]
+		if(this.entryIsFolder(selected) || selected.courses && !selected.unloaded){
+			return this.songAsset.selectedWidth
+		}
+		return this.songAsset.width
+	}
+	
+	/*
+	 * How wide an entry is drawn when it is not the selected one.
+	 *
+	 * A folder stays at its opened width, so it reads as a block among
+	 * the slats rather than as another slat in a different colour. There
+	 * was no way to see at a glance where the folders were.
+	 */
+	entryWidth(song){
+		return this.entryIsFolder(song) ? this.songAsset.selectedWidth : this.songAsset.width
+	}
+	
+	/*
+	 * Where every visible box goes.
+	 *
+	 * Walked outwards from the selected one rather than multiplied out
+	 * from its index: with folders at a different width, an index no
+	 * longer tells you where a box is. The mouse reads the same walk, so
+	 * what you click on is what you get.
+	 *
+	 * Boxes come back in drawing order -- outermost first on the left,
+	 * outermost first on the right -- so the nearer ones keep laying
+	 * their shadows over the further ones the way they always have.
+	 */
+	wheelLayout(selectedWidth, xOffset, winW){
+		var margin = this.songAsset.marginLeft
+		var centre = winW / 2 + xOffset
+		var selectedX = centre - selectedWidth / 2
+		var left = []
+		var edge = selectedX
+		for(var n = 1; ; n++){
+			var index = this.mod(this.songs.length, this.selectedSong - n)
+			var width = this.entryWidth(this.songs[index])
+			edge -= margin + width
+			left.push({offset: -n, index: index, x: edge, width: width})
+			if(edge + width + margin < 0){
+				break
+			}
+		}
+		var right = []
+		edge = selectedX + selectedWidth
+		for(var n = 1; ; n++){
+			var index = this.mod(this.songs.length, this.selectedSong + n)
+			var width = this.entryWidth(this.songs[index])
+			edge += margin
+			if(edge > winW){
+				break
+			}
+			right.push({offset: n, index: index, x: edge, width: width})
+			edge += width
+		}
+		right.reverse()
+		return {
+			selected: {offset: 0, index: this.selectedSong, x: selectedX, width: selectedWidth},
+			left: left,
+			right: right
+		}
 	}
 	
 	toSelectDifficulty(fromP2){
@@ -2255,6 +2431,14 @@ class SongSelect{
 				ratio + 0.2
 			)
 			
+			// One row of wide slots. A screen holds three or four
+			// folders; the spare few cover a scroll in either direction.
+			this.folderTitleCache.resize(
+				(this.songAsset.selectedWidth - borders + 1) * 8,
+				90,
+				ratio + 0.2
+			)
+			
 			var textW = strings.id === "en" ? 350 : 280
 			this.selectTextCache.resize((textW + 53 + 60 + 1) * 2, this.songAsset.marginTop + 15, ratio + 0.5)
 			
@@ -2461,9 +2645,10 @@ class SongSelect{
 		}
 		
 		if(screen === "song"){
-			if(this.songs[this.selectedSong].courses && !this.songs[this.selectedSong].unloaded){
-				selectedWidth = this.songAsset.selectedWidth
-			}
+			var selectedEntry = this.songs[this.selectedSong]
+			// A folder is at its full width wherever it is in the wheel,
+			// so being on one changes nothing about how wide it is.
+			selectedWidth = this.selectedEntryWidth()
 			
 			var changeSpeed = this.songSelecting.speed
 			var elapsed = ms - this.state.moveMS
@@ -2492,7 +2677,7 @@ class SongSelect{
 			// whatever comes next -- YataiDON gives it 233ms after a 133ms
 			// delay against a 166ms slide. Squeezing it inside the step
 			// was what made the wheel read as snapping between positions.
-			if(this.state.expandMS){
+			if(this.state.expandMS && !this.entryIsFolder(selectedEntry)){
 				var opening = (ms - this.state.expandMS) / this.songSelecting.expandDuration
 				if(opening < 1){
 					var opened = opening <= 0 ? 0 : 1 - Math.pow(1 - opening, 3)
@@ -2552,49 +2737,23 @@ class SongSelect{
 			ratio: ratio
 		}
 		
+		if(screen === "song"){
+			this.drawListingPosition(ctx, frameTop, winW)
+		}
+		
 		if(screen === "title" || screen === "titleFadeIn" || screen === "song"){
-			for(var i = this.selectedSong - 1; ; i--){
-				var highlight = 0
-				if(i - this.selectedSong === this.state.moveHover){
-					highlight = 1
-				}
-				var index = this.mod(this.songs.length, i)
-				var _x = winW / 2 - (this.selectedSong - i) * (this.songAsset.width + this.songAsset.marginLeft) - selectedWidth / 2 + xOffset
-				if(_x + this.songAsset.width + this.songAsset.marginLeft < 0){
-					break
-				}
+			var layout = this.wheelLayout(selectedWidth, xOffset, winW)
+			var boxes = layout.left.concat(layout.right)
+			for(var b = 0; b < boxes.length; b++){
+				var box = boxes[b]
 				this.drawClosedSong({
 					ctx: ctx,
-					x: _x,
+					x: box.x,
 					y: songTop,
-					song: this.songs[index],
-					highlight: highlight,
-					disabled: this.entryDisabledInSession(this.songs[index])
-				})
-			}
-			var startFrom
-			for(var i = this.selectedSong + 1; ; i++){
-				var _x = winW / 2 + (i - this.selectedSong - 1) * (this.songAsset.width + this.songAsset.marginLeft) + this.songAsset.marginLeft + selectedWidth / 2 + xOffset
-				if(_x > winW){
-					startFrom = i - 1
-					break
-				}
-			}
-			for(var i = startFrom; i > this.selectedSong ; i--){
-				var highlight = 0
-				if(i - this.selectedSong === this.state.moveHover){
-					highlight = 1
-				}
-				var index = this.mod(this.songs.length, i)
-				var currentSong = this.songs[index]
-				var _x = winW / 2 + (i - this.selectedSong - 1) * (this.songAsset.width + this.songAsset.marginLeft) + this.songAsset.marginLeft + selectedWidth / 2 + xOffset
-				this.drawClosedSong({
-					ctx: ctx,
-					x: _x,
-					y: songTop,
-					song: this.songs[index],
-					highlight: highlight,
-					disabled: this.entryDisabledInSession(this.songs[index])
+					width: box.width,
+					song: this.songs[box.index],
+					highlight: box.offset === this.state.moveHover ? 1 : 0,
+					disabled: this.entryDisabledInSession(this.songs[box.index])
 				})
 			}
 		}
@@ -2797,8 +2956,17 @@ class SongSelect{
 									ctx: ctx,
 									type: crownType,
 									x: (songSel ? x + 33 + i * 60 : x + 402 + i * 100) + (players === 2 ? p === 0 ? -13 : 13 : 0),
-									y: songSel ? y + 75 : y + 30,
-									scale: 0.25,
+									// Lowered to sit just above the
+									// difficulty bars rather than adrift
+									// between them and the top of the box.
+									y: songSel ? y + (players === 2 ? 75 : 85) : y + 30,
+									// The skin's own, 56 across, with the
+									// frame that matches the difficulty --
+									// but two of them go side by side in a
+									// session, where 56 each does not fit.
+									variant: players === 2 ? "small" : "box",
+									frame: currentUra ? 4 : i,
+									size: players === 2 ? 24 : 56,
 									ratio: this.ratio / this.pixelRatio
 								})
 							}
@@ -3200,7 +3368,9 @@ class SongSelect{
 						fontFamily: this.font
 					})
 				}
-				if(selectedSkin.outline === "#000"){
+				if(this.entryIsFolder(currentSong)){
+					this.drawFolderTitle(ctx, x, y, w, h, currentSong.title, selectedSkin.outline)
+				}else if(selectedSkin.outline === "#000"){
 					this.currentSongCache.get({
 						ctx: ctx,
 						x: x + textX,
@@ -3615,7 +3785,7 @@ class SongSelect{
 		var ctx = config.ctx
 		
 		this.drawSongCrown(config)
-		config.width = this.songAsset.width
+		config.width = config.width || this.songAsset.width
 		config.height = this.songAsset.height
 		config.border = this.songAsset.border
 		config.innerBorder = this.songAsset.innerBorder
@@ -3624,31 +3794,40 @@ class SongSelect{
 		config.outline = config.song.skin.outline
 		config.text = config.song.title
 		config.animateMS = Math.max(this.state.moveMS, this.state.mouseMoveMS)
-		config.cached = 1
+		// The shadow is cached per width, so a folder at the opened width
+		// shares the cache with an opened box rather than stretching the
+		// slat-sized one.
+		config.cached = config.width === this.songAsset.selectedWidth ? 2 : 1
 		config.frameCache = this.songFrameCache
-		config.innerContent = (x, y, w, h) => {
-			this.songTitleCache.get({
-				ctx: ctx,
-				x: x,
-				y: y,
-				w: w,
-				h: h,
-				id: config.text + config.outline,
-			}, ctx => {
-				this.draw.verticalText({
+		if(this.entryIsFolder(config.song)){
+			config.innerContent = (x, y, w, h) => {
+				this.drawFolderTitle(ctx, x, y, w, h, config.text, config.outline)
+			}
+		}else{
+			config.innerContent = (x, y, w, h) => {
+				this.songTitleCache.get({
 					ctx: ctx,
-					text: config.text,
-					x: w / 2,
-					y: 7,
-					width: w,
-					height: h - 35,
-					fill: "#fff",
-					outline: config.outline,
-					outlineSize: this.songAsset.letterBorder,
-					fontSize: 40,
-					fontFamily: this.font
+					x: x,
+					y: y,
+					w: w,
+					h: h,
+					id: config.text + config.outline,
+				}, ctx => {
+					this.draw.verticalText({
+						ctx: ctx,
+						text: config.text,
+						x: w / 2,
+						y: 7,
+						width: w,
+						height: h - 35,
+						fill: "#fff",
+						outline: config.outline,
+						outlineSize: this.songAsset.letterBorder,
+						fontSize: 40,
+						fontFamily: this.font
+					})
 				})
-			})
+			}
 		}
 		this.draw.songFrame(config)
 		if("p2Cursor" in config.song && config.song.p2Cursor !== null && p2.socket.readyState === 1){
@@ -3685,7 +3864,8 @@ class SongSelect{
 							type: score[p][diff].crown,
 							x: (config.x + this.songAsset.width / 2) + (players === 2 ? p === 0 ? -13 : 13 : 0),
 							y: config.y - 13,
-							scale: 0.3,
+							variant: "small",
+							size: players === 2 ? 28 : 40,
 							ratio: this.ratio / this.pixelRatio
 						})
 						this.draw.diffIcon({
@@ -4552,6 +4732,7 @@ class SongSelect{
 		this.difficultyCache.clean()
 		this.sessionCache.clean()
 		this.currentSongCache.clean()
+		this.folderTitleCache.clean()
 		this.nameplateCache.clean()
 		assets.sounds["bgm_songsel"].stop()
 		if(!this.bgmEnabled){
