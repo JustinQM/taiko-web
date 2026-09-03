@@ -1516,10 +1516,19 @@
 		var draws = [[img, frame * sw]]
 		if(config.type === "rainbow"){
 			if(frames > 1){
-				var parts = this.crownLayers(img, frames, sw, sh, prefix + config.type)
-				var turned = parts && this.hueTurned(parts.crown, 0, sw, sh, prefix + "crown")
+				// The silver crown is the same drawing in a colour
+				// that does not turn, which is what tells the crown
+				// apart from the emblem. Without it the crown holds
+				// still rather than dragging the emblem round with it.
+				var plain = assets.image["yatai_crown_" + prefix + "silver"]
+				var parts = plain && plain.complete
+					&& plain.naturalWidth === img.naturalWidth
+					&& plain.naturalHeight === img.naturalHeight
+					? this.crownLayers(img, plain, frames, sw, sh, prefix + config.type)
+					: null
+				var turned = parts && this.hueTurned(parts.turn[frame], 0, sw, sh, prefix + "crown" + frame)
 				if(turned){
-					draws = [[turned, 0], [parts.emblems[frame], 0]]
+					draws = [[turned, 0], [parts.fixed[frame], 0]]
 				}
 			}else{
 				var turned = this.hueTurned(img, frame * sw, sw, sh, prefix + config.type)
@@ -1538,17 +1547,35 @@
 	/*
 	 * The crown apart from the difficulty emblem beside it.
 	 *
-	 * The five frames are one crown with a different emblem on each, so
-	 * the pixels most of the frames agree on are the crown and the rest
-	 * is the emblem. Splitting them lets the rainbow turn without
-	 * dragging the emblem round with it: a green leaf cycling through
-	 * purple stops saying which difficulty it is.
+	 * The five frames of the opened box are one crown with a different
+	 * emblem on each. Turning the rainbow means turning the crown and
+	 * leaving the emblem alone -- a green leaf cycling through purple
+	 * stops saying which difficulty it is -- so the two have to be told
+	 * apart pixel by pixel, and a pixel put on the wrong side shows up
+	 * as a fleck of the wrong colour once the crown has moved on.
 	 *
-	 * Worked out once from the art rather than written down as a
-	 * rectangle, because the emblem overlaps the crown and sits
-	 * differently on each frame.
+	 * Two things say which is which, and neither is enough alone:
+	 *
+	 *  - The crown is the same in every frame, so where most of the
+	 *    frames agree, that is the crown. This misses the parts of the
+	 *    crown only one frame leaves uncovered, and it mistakes the
+	 *    leaf for the crown where the leaf and the tree happen to
+	 *    match.
+	 *  - The silver crown is the same drawing with a colour that never
+	 *    turns, so anything that differs between the two is crown and
+	 *    anything that matches is emblem. This one is confused by the
+	 *    emblems being shaded a little differently in each set, and by
+	 *    a frame or two being a pixel out of line between them, which
+	 *    is why the match is allowed to land anywhere in the
+	 *    neighbouring pixels and to ignore brightness.
+	 *
+	 * The frames decide it where they agree three ways or more, the
+	 * silver crown decides the rest, and whatever specks are left over
+	 * are absorbed into whichever side surrounds them -- an emblem is
+	 * one shape and so is a crown, so a handful of pixels of one
+	 * stranded inside the other is a mistake either way.
 	 */
-	crownLayers(img, frames, sw, sh, key){
+	crownLayers(img, plain, frames, sw, sh, key){
 		if(!this.crownParts){
 			this.crownParts = {}
 		}
@@ -1556,6 +1583,110 @@
 			return this.crownParts[key]
 		}
 		this.crownParts[key] = null
+		var read = this.crownFrames(img, frames, sw, sh)
+		var grey = this.crownFrames(plain, frames, sw, sh)
+		if(!read || !grey){
+			return null
+		}
+		var count = sw * sh
+		// Near enough, rather than the same. The frames were drawn one
+		// at a time and antialiased one at a time with them, so the
+		// crown's outline lands on a slightly different alpha in each.
+		var alike = (a, ai, b, bi) => {
+			if(a[ai * 4 + 3] === 0 && b[bi * 4 + 3] === 0){
+				return true
+			}
+			for(var k = 0; k < 4; k++){
+				var d = a[ai * 4 + k] - b[bi * 4 + k]
+				if(d > 40 || d < -40){
+					return false
+				}
+			}
+			return true
+		}
+		// The same paint, whatever the light is doing to it. The
+		// emblems are shaded differently in the two sets, so the
+		// colours are compared by how far apart their channels are
+		// rather than by what they are: a dark pink and a light pink
+		// are the same paint, a green and a grey are not.
+		var samePaint = (a, ai, b, bi) => {
+			if(a[ai * 4 + 3] < 8 || b[bi * 4 + 3] < 8){
+				return false
+			}
+			if(alike(a, ai, b, bi)){
+				return true
+			}
+			var rg = (a[ai * 4] - a[ai * 4 + 1]) - (b[bi * 4] - b[bi * 4 + 1])
+			var gb = (a[ai * 4 + 1] - a[ai * 4 + 2]) - (b[bi * 4 + 1] - b[bi * 4 + 2])
+			return rg <= 40 && rg >= -40 && gb <= 40 && gb >= -40
+		}
+		var maj = new Uint8ClampedArray(count * 4)
+		var agreed = new Uint8Array(count)
+		for(var i = 0; i < count; i++){
+			var best = 0
+			var bestCount = 0
+			for(var f = 0; f < frames; f++){
+				var agree = 0
+				for(var g = 0; g < frames; g++){
+					if(alike(read[f], i, read[g], i)){
+						agree++
+					}
+				}
+				if(agree > bestCount){
+					bestCount = agree
+					best = f
+				}
+			}
+			agreed[i] = bestCount
+			for(var k = 0; k < 4; k++){
+				maj[i * 4 + k] = read[best][i * 4 + k]
+			}
+		}
+		var turn = []
+		var fixed = []
+		for(var f = 0; f < frames; f++){
+			var mask = new Int8Array(count)
+			for(var y = 0; y < sh; y++){
+				for(var x = 0; x < sw; x++){
+					var i = y * sw + x
+					if(read[f][i * 4 + 3] === 0){
+						mask[i] = -1
+						continue
+					}
+					if(agreed[i] >= 3){
+						mask[i] = alike(read[f], i, maj, i) ? 1 : 0
+						continue
+					}
+					var matched = false
+					for(var dy = -1; dy <= 1 && !matched; dy++){
+						for(var dx = -1; dx <= 1; dx++){
+							var xx = x + dx
+							var yy = y + dy
+							if(xx < 0 || xx >= sw || yy < 0 || yy >= sh){
+								continue
+							}
+							if(samePaint(read[f], i, grey[f], yy * sw + xx)){
+								matched = true
+								break
+							}
+						}
+					}
+					mask[i] = matched ? 0 : 1
+				}
+			}
+			this.absorbSpecks(mask, sw, sh)
+			turn.push(this.crownLayer(read[f], mask, 1, sw, sh))
+			fixed.push(this.crownLayer(read[f], mask, 0, sw, sh))
+		}
+		this.crownParts[key] = {turn: turn, fixed: fixed}
+		return this.crownParts[key]
+	}
+	
+	/*
+	 * Every frame of a strip as pixels, or nothing if the canvas will
+	 * not hand them back.
+	 */
+	crownFrames(img, frames, sw, sh){
 		var scratch = document.createElement("canvas")
 		scratch.width = sw
 		scratch.height = sh
@@ -1573,90 +1704,84 @@
 				return null
 			}
 		}
-		// The crown at each pixel is whichever value most of the frames
-		// agree on.
-		//
-		// "Identical in all five" was the first try and it left a seam
-		// down the crown: the emblems sit in slightly different places,
-		// so a pixel the emblem covers in one frame and not the others
-		// disagrees -- and that is a crown pixel, which then went to the
-		// emblem layer and kept the colour the rotation had moved on
-		// from. A majority ignores the odd frame out.
+		return read
+	}
+	
+	/*
+	 * Islands of a handful of pixels go to whichever side is around
+	 * them. Both the crown and the emblem are one shape, so a speck of
+	 * either stranded inside the other is a misread, and left alone it
+	 * is a fleck that turns colour while the shape it sits on does not.
+	 */
+	absorbSpecks(mask, sw, sh){
 		var count = sw * sh
-		var crown = new Uint8ClampedArray(count * 4)
-		// Near enough, rather than the same. The five frames were drawn
-		// one at a time and their edges antialiased one at a time with
-		// them, so the crown's black outline is a slightly different
-		// alpha in each -- 224 here, 240 there, 255 in the next. Held to
-		// an exact match a fifth of the crown fails it, nearly all of it
-		// outline, and the outline then rides along in the emblem layer:
-		// drawn flat over a crown whose own outline had turned with the
-		// rainbow, which is the doubled, washed-out edge in the report.
-		var alike = (a, b, i) => {
-			if(a[i * 4 + 3] === 0 && b[i * 4 + 3] === 0){
-				// Both invisible. What is under a zero alpha is not
-				// worth comparing, and png writers do not agree on it.
-				return true
+		var seen = new Uint8Array(count)
+		var stack = []
+		var island = []
+		for(var start = 0; start < count; start++){
+			if(seen[start] || mask[start] < 0){
+				continue
 			}
-			for(var k = 0; k < 4; k++){
-				var d = a[i * 4 + k] - b[i * 4 + k]
-				if(d > 40 || d < -40){
-					return false
-				}
-			}
-			return true
-		}
-		for(var i = 0; i < count; i++){
-			var best = 0
-			var bestCount = 0
-			for(var f = 0; f < frames; f++){
-				var agree = 0
-				for(var g = 0; g < frames; g++){
-					if(alike(read[f], read[g], i)){
-						agree++
+			var side = mask[start]
+			var edged = false
+			island.length = 0
+			stack.length = 0
+			stack.push(start)
+			seen[start] = 1
+			while(stack.length){
+				var at = stack.pop()
+				island.push(at)
+				var ax = at % sw
+				var ay = (at - ax) / sw
+				for(var dy = -1; dy <= 1; dy++){
+					for(var dx = -1; dx <= 1; dx++){
+						var xx = ax + dx
+						var yy = ay + dy
+						if((dx === 0 && dy === 0) || xx < 0 || xx >= sw || yy < 0 || yy >= sh){
+							continue
+						}
+						var to = yy * sw + xx
+						if(mask[to] < 0){
+							continue
+						}
+						if(mask[to] === side){
+							if(!seen[to]){
+								seen[to] = 1
+								stack.push(to)
+							}
+						}else{
+							edged = true
+						}
 					}
 				}
-				if(agree > bestCount){
-					bestCount = agree
-					best = f
+			}
+			if(edged && island.length < 16){
+				for(var n = 0; n < island.length; n++){
+					mask[island[n]] = side ? 0 : 1
 				}
 			}
-			// A real majority, not just the frame that got there
-			// first. Where all five emblems overlap, no two frames
-			// agree and the tie went to frame 0 -- putting its whole
-			// emblem in the crown layer, which is what left easy's
-			// flower turning colour while the other four sat still.
-			// Nothing agreed on is emblem, not crown.
-			if(bestCount * 2 > frames){
+		}
+	}
+	
+	/*
+	 * One side of the mask, drawn on its own. The two together are the
+	 * frame back exactly as it was.
+	 */
+	crownLayer(source, mask, side, sw, sh){
+		var canvas = document.createElement("canvas")
+		canvas.width = sw
+		canvas.height = sh
+		var out = canvas.getContext("2d")
+		var pixels = out.createImageData(sw, sh)
+		for(var i = 0; i < sw * sh; i++){
+			if(mask[i] === side){
 				for(var k = 0; k < 4; k++){
-					crown[i * 4 + k] = read[best][i * 4 + k]
+					pixels.data[i * 4 + k] = source[i * 4 + k]
 				}
 			}
 		}
-		// Everything a frame does not share with that majority is its
-		// emblem, including the soft edge where it meets the crown.
-		var differs = (source, i) => !alike(source, crown, i)
-		var layer = (source, keep) => {
-			var canvas = document.createElement("canvas")
-			canvas.width = sw
-			canvas.height = sh
-			var out = canvas.getContext("2d")
-			var pixels = out.createImageData(sw, sh)
-			for(var i = 0; i < count; i++){
-				if(differs(source, i) === keep){
-					for(var k = 0; k < 4; k++){
-						pixels.data[i * 4 + k] = source[i * 4 + k]
-					}
-				}
-			}
-			out.putImageData(pixels, 0, 0)
-			return canvas
-		}
-		this.crownParts[key] = {
-			crown: layer(crown, false),
-			emblems: read.map(frame => layer(frame, true))
-		}
-		return this.crownParts[key]
+		out.putImageData(pixels, 0, 0)
+		return canvas
 	}
 	
 	/*
