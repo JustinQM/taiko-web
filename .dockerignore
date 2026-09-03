@@ -7,9 +7,11 @@
 .gitattributes
 .dockerignore
 
-# Local dev and deployment scaffolding, not needed inside the image.
+# Local dev scaffolding and documentation, not needed inside the image.
 docker-compose*.yml
-REFACTOR-PLAN.md
+*.md
+*.mediawiki
+tests
 *.archive
 *.dump
 __pycache__

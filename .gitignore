@@ -54,7 +54,7 @@ public/assets/song_skins
 .venv
 public/src/js/plugin
 
-# ---- deployment / local dev (mia-taiko-web step 1) ----
+# ---- deployment and local dev ----
 # jj snapshots the working copy on every command, so generated files are
 # ignored here before anything creates them.
 .direnv/
@@ -65,9 +65,14 @@ docker-compose.override.yml
 *.archive
 *.dump
 __pycache__/
-# runtime plugin drop directory; the loader is being removed (task 16) but
-# upstream also ignores public/src/js/plugin, and this is its sibling
+# runtime plugin drop directory. The three plugins we used are settings
+# now and the loader is inert, but upstream ignores public/src/js/plugin
+# and this is its sibling.
 public/src/plugins/
 # generated from public/assets/fonts/TnT.ttf at image build time, so that
 # no font binary is committed
 highscores/static/tnt.woff2
+
+# editor and test-run leavings
+.session.vim
+.pytest_cache/
