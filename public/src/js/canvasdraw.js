@@ -503,7 +503,7 @@
 				// as letters -- which is what a long song title looked
 				// like down the side of its box. Narrowing by the same
 				// amount past that point keeps the shape of them and
-				// makes the line smaller instead. The column is centred
+				// makes the line smaller instead. The column is centered
 				// on the origin, so this needs no re-centring.
 				ctx.scale(Math.min(1, scaling / 0.7), scaling)
 			}
@@ -1139,7 +1139,7 @@
 			ctx.lineWidth = 4
 			ctx.strokeStyle = "#000"
 			ctx.stroke(this.diffStarPath)
-			// Outlined when it is not a favourite, filled when it is, so
+			// Outlined when it is not a favorite, filled when it is, so
 			// the button says which it is without a label.
 			ctx.fillStyle = config.on ? "#ffdb2c" : "#f0efe8"
 			ctx.fill(this.diffStarPath)
@@ -1512,11 +1512,11 @@
 		var height = box * sh / sw
 		// Usually one draw of the frame. A turning rainbow in the opened
 		// box is two: the crown, hue-shifted, and the difficulty's emblem
-		// over it at the colour it is meant to be.
+		// over it at the color it is meant to be.
 		var draws = [[img, frame * sw]]
 		if(config.type === "rainbow"){
 			if(frames > 1){
-				// The silver crown is the same drawing in a colour
+				// The silver crown is the same drawing in a color
 				// that does not turn, which is what tells the crown
 				// apart from the emblem. Without it the crown holds
 				// still rather than dragging the emblem round with it.
@@ -1552,7 +1552,7 @@
 	 * leaving the emblem alone -- a green leaf cycling through purple
 	 * stops saying which difficulty it is -- so the two have to be told
 	 * apart pixel by pixel, and a pixel put on the wrong side shows up
-	 * as a fleck of the wrong colour once the crown has moved on.
+	 * as a fleck of the wrong color once the crown has moved on.
 	 *
 	 * Two things say which is which, and neither is enough alone:
 	 *
@@ -1561,13 +1561,13 @@
 	 *    crown only one frame leaves uncovered, and it mistakes the
 	 *    leaf for the crown where the leaf and the tree happen to
 	 *    match.
-	 *  - The silver crown is the same drawing with a colour that never
+	 *  - The silver crown is the same drawing with a color that never
 	 *    turns, so anything that differs between the two is crown and
 	 *    anything that matches is emblem. This one is confused by the
 	 *    emblems being shaded a little differently in each set, and by
 	 *    a frame or two being a pixel out of line between them, which
 	 *    is why the match is allowed to land anywhere in the
-	 *    neighbouring pixels and to ignore brightness.
+	 *    neighboring pixels and to ignore brightness.
 	 *
 	 * The frames decide it where they agree three ways or more, the
 	 * silver crown decides the rest, and whatever specks are left over
@@ -1584,8 +1584,8 @@
 		}
 		this.crownParts[key] = null
 		var read = this.crownFrames(img, frames, sw, sh)
-		var grey = this.crownFrames(plain, frames, sw, sh)
-		if(!read || !grey){
+		var gray = this.crownFrames(plain, frames, sw, sh)
+		if(!read || !gray){
 			return null
 		}
 		var count = sw * sh
@@ -1606,9 +1606,9 @@
 		}
 		// The same paint, whatever the light is doing to it. The
 		// emblems are shaded differently in the two sets, so the
-		// colours are compared by how far apart their channels are
+		// colors are compared by how far apart their channels are
 		// rather than by what they are: a dark pink and a light pink
-		// are the same paint, a green and a grey are not.
+		// are the same paint, a green and a gray are not.
 		var samePaint = (a, ai, b, bi) => {
 			if(a[ai * 4 + 3] < 8 || b[bi * 4 + 3] < 8){
 				return false
@@ -1665,7 +1665,7 @@
 							if(xx < 0 || xx >= sw || yy < 0 || yy >= sh){
 								continue
 							}
-							if(samePaint(read[f], i, grey[f], yy * sw + xx)){
+							if(samePaint(read[f], i, gray[f], yy * sw + xx)){
 								matched = true
 								break
 							}
@@ -1711,7 +1711,7 @@
 	 * Islands of a handful of pixels go to whichever side is around
 	 * them. Both the crown and the emblem are one shape, so a speck of
 	 * either stranded inside the other is a misread, and left alone it
-	 * is a fleck that turns colour while the shape it sits on does not.
+	 * is a fleck that turns color while the shape it sits on does not.
 	 */
 	absorbSpecks(mask, sw, sh){
 		var count = sw * sh
@@ -1789,7 +1789,7 @@
 	 *
 	 * A donderful is hard enough to earn that its crown should not sit
 	 * there as a flat picture. The art is already a rainbow, so turning
-	 * its hue is enough to make it flow -- no recolouring, and it stays
+	 * its hue is enough to make it flow -- no recoloring, and it stays
 	 * the crown the skin drew.
 	 *
 	 * Each step is rendered once and kept. Doing it live would put a
@@ -2050,7 +2050,7 @@
 		var img = assets.image["yatai_gauge_soul_fire"]
 		// Same guard as the rainbow gauge overlay. A placeholder is a 1x1
 		// transparent pixel, so drawing it costs a blit and shows nothing,
-		// which keeps the public build's behaviour identical apart from
+		// which keeps the public build's behavior identical apart from
 		// having no art.
 		if(!img || !img.complete || !img.naturalWidth){
 			return
@@ -2073,7 +2073,7 @@
 		// body down and left of the glyph, which is what it looked like.
 		//
 		// The body is the part present in all eight frames: 130x135 at
-		// (13,123) of a 256x272 frame, so its centre is 0.305 across and
+		// (13,123) of a 256x272 frame, so its center is 0.305 across and
 		// 0.700 down. The skin draws the frame at 0.75 for a body of about
 		// 1.7 times its glyph; ours is 30 wide, so the frame is 102.
 		var w = 102

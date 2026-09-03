@@ -768,7 +768,7 @@ def route_api_account_remove():
     return jsonify({'status': 'ok'})
 
 
-# Named per-user song lists. Favourites are the list with slug
+# Named per-user song lists. Favorites are the list with slug
 # "favorites"; the shape is a playlist from the start so adding
 # user-created ones later is rows and screens rather than a migration.
 DEFAULT_PLAYLIST = 'favorites'

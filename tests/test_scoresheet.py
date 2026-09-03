@@ -83,7 +83,7 @@ def test_peer_initiated_songsel_is_not_echoed_back(drive):
 
 
 def test_single_player_is_unchanged(drive):
-    """No session means no messages and the original sound behaviour."""
+    """No session means no messages and the original sound behavior."""
     shown = drive("toScoresShown", session=False)
     assert shown["screen"] == "scoresShown"
     assert shown["sent"] == []

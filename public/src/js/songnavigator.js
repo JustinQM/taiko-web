@@ -266,7 +266,7 @@ class SongNavigator{
 	/*
 	 * A folder whose contents are worked out when it is opened rather than
 	 * fixed when the wheel is built, so it reflects whatever has been
-	 * favourited since. YataiDON declares these in box.def with
+	 * favorited since. YataiDON declares these in box.def with
 	 * #COLLECTION and resolves them the same way.
 	 */
 	collectionFolder(spec){

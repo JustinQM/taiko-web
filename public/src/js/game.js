@@ -243,7 +243,7 @@ class Game{
 	//
 	// Absorbed from the spartan-mode plugin. All three settings default to
 	// "continue", so this is inert unless configured -- the plugin was
-	// listed with start: false, so that is the behaviour being preserved.
+	// listed with start: false, so that is the behavior being preserved.
 	checkSpartanMode(score){
 		if(this.multiplayer || this.controller.autoPlayEnabled){
 			return

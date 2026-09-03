@@ -452,7 +452,7 @@ td.song .line .dot {
   box-shadow: 0 0 0 1px #0006, 0 0 8px -1px var(--g, #4a4356);
 }
 
-/* a row of filter chips: flex so they centre on each other rather than
+/* a row of filter chips: flex so they center on each other rather than
    sitting on a text baseline, where a chip carrying a sprite and a
    text-only chip line up differently */
 .pill-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }

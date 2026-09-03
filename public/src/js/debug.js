@@ -12,7 +12,7 @@ class Debug{
 		document.body.appendChild(this.debugDiv)
 		
 		this.titleDiv = this.byClass("title")
-		this.minimiseDiv = this.byClass("minimise")
+		this.minimizeDiv = this.byClass("minimize")
 		this.offsetDiv = this.byClass("offset")
 		this.measureNumDiv = this.byClass("measure-num")
 		this.branchHideDiv = this.byClass("branch-hide")
@@ -35,7 +35,7 @@ class Debug{
 		pageEvents.mouseAdd(this, this.onMove.bind(this))
 		pageEvents.add(window, "touchmove", this.onMove.bind(this))
 		pageEvents.add(this.titleDiv, ["mousedown", "touchstart"], this.startMove.bind(this))
-		pageEvents.add(this.minimiseDiv, ["click", "touchstart"], this.minimise.bind(this))
+		pageEvents.add(this.minimizeDiv, ["click", "touchstart"], this.minimize.bind(this))
 		pageEvents.add(this.restartBtn, ["click", "touchstart"], this.restartSong.bind(this))
 		pageEvents.add(this.exitBtn, ["click", "touchstart"], this.clean.bind(this))
 		pageEvents.add(this.restartLabel, "touchstart", this.touchBox.bind(this))
@@ -127,8 +127,8 @@ class Debug{
 		this.debugDiv.style.display = ""
 		this.stopMove()
 	}
-	minimise(){
-		debugObj.state = "minimised"
+	minimize(){
+		debugObj.state = "minimized"
 		this.debugDiv.style.display = "none"
 	}
 	updateStatus(){
@@ -293,7 +293,7 @@ class Debug{
 		pageEvents.mouseRemove(this)
 		pageEvents.remove(window, "touchmove")
 		pageEvents.remove(this.titleDiv, ["mousedown", "touchstart"])
-		pageEvents.remove(this.minimiseDiv, ["click", "touchstart"])
+		pageEvents.remove(this.minimizeDiv, ["click", "touchstart"])
 		pageEvents.remove(this.restartBtn, ["click", "touchstart"])
 		pageEvents.remove(this.exitBtn, ["click", "touchstart"])
 		pageEvents.remove(this.restartLabel, "touchstart")
@@ -306,7 +306,7 @@ class Debug{
 		delete this.measureNumSlider
 		delete this.volumeSlider
 		delete this.titleDiv
-		delete this.minimiseDiv
+		delete this.minimizeDiv
 		delete this.offsetDiv
 		delete this.measureNumDiv
 		delete this.branchHideDiv

@@ -1,7 +1,7 @@
 /*
  * A named per-user list of songs.
  *
- * Two exist: favourites, which the player adds to deliberately, and
+ * Two exist: favorites, which the player adds to deliberately, and
  * recently played, which is written on every play and trimmed by the
  * server. They are the same thing with a different slug, and a
  * user-created playlist later would be a third with a name attached.

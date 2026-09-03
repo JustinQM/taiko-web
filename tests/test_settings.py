@@ -249,7 +249,7 @@ def test_the_nintendo_pad_layout_is_type_b_the_other_way_round(game):
     faces = lambda buttons: [x for x in buttons if x in ("a", "b", "x", "y")]
     assert b["game"]["don_l"] == d["game"]["don_l"], "the d-pad is unchanged"
     assert b["game"]["ka_l"] == d["game"]["ka_l"]
-    # Only the face buttons swap. The shoulders are not labelled A or B
+    # Only the face buttons swap. The shoulders are not labeled A or B
     # and mean the same thing whichever mode the pad is in.
     assert faces(b["game"]["don_r"]) == faces(d["game"]["ka_r"])
     assert faces(b["game"]["ka_r"]) == faces(d["game"]["don_r"])

@@ -49,7 +49,7 @@ function debug(){
 	if(debugObj.state === "open"){
 		debugObj.debug.clean()
 		return "Debug closed"
-	}else if(debugObj.state === "minimised"){
+	}else if(debugObj.state === "minimized"){
 		debugObj.debug.restore()
 		return "Debug restored"
 	}else{
@@ -118,8 +118,8 @@ pageEvents.keyAdd(debugObj, "all", "down", event => {
 	if((event.keyCode === 186 || event.keyCode === 59) && event.ctrlKey && (event.shiftKey || event.altKey)){
 		// Semicolon
 		if(debugObj.state === "open"){
-			debugObj.debug.minimise()
-		}else if(debugObj.state === "minimised"){
+			debugObj.debug.minimize()
+		}else if(debugObj.state === "minimized"){
 			debugObj.debug.restore()
 		}else{
 			try{

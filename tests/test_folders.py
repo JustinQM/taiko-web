@@ -140,7 +140,7 @@ def test_nesting_comes_from_the_source_tree(wheel):
     """Sub-folders are the path the chart had on disk, below its genre.
 
     Most songs have none, so most genres stay flat. The ones that do get
-    the structure they were organised with.
+    the structure they were organized with.
     """
     nested = wheel.page.evaluate("""() => {
         const out = []
@@ -266,7 +266,7 @@ def test_random_still_lands_on_its_song_with_backs_interleaved(wheel):
 
 def test_a_folder_is_drawn_at_its_full_width(wheel):
     """A folder and a song looked the same in the wheel -- an 82px slat
-    with the name down it, differing only in colour -- so there was no
+    with the name down it, differing only in color -- so there was no
     way to see at a glance where the folders were."""
     widths = wheel.page.evaluate("""() => {
         const folder = __ss.songs.find(s => s.action === "folder")
@@ -520,7 +520,7 @@ def test_back_inside_a_folder_goes_up_one(wheel):
     assert wheel.page.evaluate("() => !!__ss.redrawRunning") is True
 
 
-def test_clicking_favourite_does_not_take_the_screen_away(wheel):
+def test_clicking_favorite_does_not_take_the_screen_away(wheel):
     """The keyboard has always had a case for it; the mouse did not, so
     the click fell through to 'load this difficulty' with an index of
     -1 -- and toLoadSong tears song select down before it finds out
@@ -563,10 +563,10 @@ def test_clicking_favourite_does_not_take_the_screen_away(wheel):
             toggled: favorites.has(song) !== before
         }
     }""")
-    assert result["hit"] == result["index"], "the click did not land on Favourite"
+    assert result["hit"] == result["index"], "the click did not land on Favorite"
     assert result["alive"] is True, "song select was torn down"
     assert result["screen"] == "difficulty", "it left the difficulty screen"
-    assert result["toggled"] is True, "the click did not favourite anything"
+    assert result["toggled"] is True, "the click did not favorite anything"
 
 
 def test_an_impossible_difficulty_is_refused(wheel):

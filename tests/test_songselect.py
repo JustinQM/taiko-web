@@ -99,10 +99,10 @@ def test_selecting_a_song_opens_difficulty_select(wheel):
 def test_search_is_usable_in_a_netplay_session(wheel):
     """Selectable and drawn as selectable.
 
-    The guard in toSelectDifficulty and the three sites that grey entries
+    The guard in toSelectDifficulty and the three sites that gray entries
     out in redraw used to carry their own copies of this condition and
     disagreed about Search: step 1 fixed the guard, so it could be chosen
-    but still rendered greyed out. They share one definition now.
+    but still rendered grayed out. They share one definition now.
     """
     disabled = wheel.page.evaluate("""() => {
         const real = p2.session
@@ -152,7 +152,7 @@ def test_genre_order_matches_the_old_category_order(wheel):
     shape = wheel.page.evaluate("""() => {
         const items = __ss.navigator.items
         return {
-            // genre folders only; collections like favourites sit after
+            // genre folders only; collections like favorites sit after
             // them and are not categories
             genres: items.filter(i => i.folder && i.folder.id.startsWith("genre:"))
                          .map(i => i.originalCategory),

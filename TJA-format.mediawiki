@@ -504,7 +504,7 @@ All song notation commands are prefixed with a hash sign <code>#</code>, with sp
 ==== #SCROLL ====
 * Multiplies the default scrolling speed by this value
 * Changes how the notes appear on the screen, values above 1 will make them scroll faster and below 1 scroll slower.
-* Negative values will scroll notes from the left instead of the right. This behaviour is not supported in taiko-web.
+* Negative values will scroll notes from the left instead of the right. This behavior is not supported in taiko-web.
 * The value cannot be <code>0</code>.
 * Can be placed in the middle of a measure.
 
@@ -549,7 +549,7 @@ All song notation commands are prefixed with a hash sign <code>#</code>, with sp
 
 ==== #N, #E, #M ====
 * Starts a song notation for a path:
-:* #N - starts Normal path, background is the default grey.
+:* #N - starts Normal path, background is the default gray.
 :* #E - starts Advanced or Professional path, background is blue.
 :* #M - starts Master path, background is purple.
 * Only one of the paths from a #BRANCHSTART can be played in one go.
@@ -626,7 +626,7 @@ All song notation commands are prefixed with a hash sign <code>#</code>, with sp
 * #BPMCHANGE will make the notes after it appear at the same scrolling speed as the notes that are currently being played, but then change their speed suddenly after #BPMCHANGE is passed.
 * #DELAY will stop the scrolling completely.
 * #BMSCROLL ignores #SCROLL commands.
-* Behaviour can be turned off by the user.
+* Behavior can be turned off by the user.
 * Ignored in taiko-web.
 
 ;Example:
@@ -693,7 +693,7 @@ All song notation commands are prefixed with a hash sign <code>#</code>, with sp
 ==== #JPOSSCROLL ''(?)'' ====
 * Linearly transition cursor's position to a different position on a bar.
 * Value is a space-separated array:
-:* First value is the amount of seconds it takes for cursor to transition. If it takes too long before another #JPOSSCROLL is passed, it will be cancelled and next transition will happen at the cursor's current position.
+:* First value is the amount of seconds it takes for cursor to transition. If it takes too long before another #JPOSSCROLL is passed, it will be canceled and next transition will happen at the cursor's current position.
 :* Second value is the relative distance in pixels to move the cursor.
 :* Third value is the direction, "0" is left and "1" is right.
 * Can be placed in the middle of a measure.

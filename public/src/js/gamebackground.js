@@ -1127,7 +1127,7 @@ class DancerGroup{
 		this.index = index
 		this.maxDancers = maxDancers
 		this.activeCount = 0
-		// centre, left, right, far-left, far-right
+		// center, left, right, far-left, far-right
 		this.spawnPositions = [2, 1, 3, 0, 4]
 		this.activeDancers = [null, null, null, null, null]
 		this.needsInitialDancer = true

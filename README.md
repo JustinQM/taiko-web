@@ -27,7 +27,7 @@ These follow YataiDON directly:
   ease-out cubic, and opening the selected box as a longer animation that
   outlasts the slide
 - The folder tree, including the back box repeated every ten songs
-- Collection folders — Favourites and Recently Played resolve when opened,
+- Collection folders — Favorites and Recently Played resolve when opened,
   like YataiDON's `#COLLECTION` box.def folders
 - The difficulty search, transcribed screen for screen: six boxes, the
   star level, the three-way confirmation prompt
@@ -65,7 +65,7 @@ YataiDON.
 
 - **A folder tree.** Genres are folders, nested where a pack has structure
   on disk. Back box every ten songs, and an `N / total` counter.
-- **Favourites**, toggled from the difficulty screen, in their own folder.
+- **Favorites**, toggled from the difficulty screen, in their own folder.
 - **Recently played**, in the order you played them.
 - **Difficulty search** — pick a course and a star level, get every chart
   in the library at exactly that level. The side panel counts how many

@@ -178,7 +178,7 @@ def test_dancers_leave_when_the_gauge_drops(background):
 
 
 def test_dancers_fill_their_slots_from_the_middle_outwards(background):
-    """Centre, then left, then right, and each keeps its place -- so an
+    """Center, then left, then right, and each keeps its place -- so an
     arrival does not shuffle the row sideways."""
     background.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0)])
     background.evaluate("([ms, g]) => __frame(ms, g)", [100, gauge(0.2)])

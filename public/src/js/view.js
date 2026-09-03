@@ -9,7 +9,7 @@
 		// the sticks start 58px apart and sweep 200px further each
 		stickRest: 29,
 		stickSweep: 200,
-		// their centre sits a little below the panel's
+		// their center sits a little below the panel's
 		stickY: 6,
 		// the five pieces of a clear are spaced by this, not by their width
 		pieceSpacing: 60,
@@ -1510,22 +1510,22 @@
 		if(!slot){
 			return
 		}
-		var centreX = (slot.paddingLeft + winW) / 2
-		var centreY = slot.y
+		var centerX = (slot.paddingLeft + winW) / 2
+		var centerY = slot.y
 		
 		// The skin's own order: the panel, then its highlight, then the
 		// sticks over the top of both. The fans belong to the full combo
 		// animation only -- a plain clear has none.
 		ctx.save()
-		this.drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY, donderful)
+		this.drawEndingPanel(ctx, elapsed, panel, full, centerX, centerY, donderful)
 		if(full){
-			this.drawEndingFans(ctx, elapsed, centreX, centreY)
-			this.drawEndingConfetti(ctx, elapsed, centreX, centreY)
+			this.drawEndingFans(ctx, elapsed, centerX, centerY)
+			this.drawEndingConfetti(ctx, elapsed, centerX, centerY)
 		}
 		if(donderful){
-			this.drawEndingSparkles(ctx, elapsed, centreX, centreY)
+			this.drawEndingSparkles(ctx, elapsed, centerX, centerY)
 		}
-		this.drawEndingSticks(ctx, elapsed, full, centreX, centreY)
+		this.drawEndingSticks(ctx, elapsed, full, centerX, centerY)
 		ctx.restore()
 	}
 	
@@ -1561,7 +1561,7 @@
 	 * has finished its bounce, fade in over 183ms and then run their six
 	 * frames in 100ms.
 	 */
-	drawEndingFans(ctx, elapsed, centreX, centreY){
+	drawEndingFans(ctx, elapsed, centerX, centerY){
 		var since = elapsed - View.ENDING.fanStart
 		if(since < 0){
 			return
@@ -1569,8 +1569,8 @@
 		var frame = Math.min(5, Math.max(0, Math.floor((since - 183) / 16.67)))
 		ctx.save()
 		ctx.globalAlpha *= Math.min(1, since / 183)
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), centreX - 310, centreY)
-		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), centreX + 310, centreY)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_l", frame, 6, 3), centerX - 310, centerY)
+		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_fan_r", frame, 6, 3), centerX + 310, centerY)
 		ctx.restore()
 	}
 	
@@ -1584,7 +1584,7 @@
 	/*
 	 * The drumsticks, on the play line.
 	 *
-	 * They start together at the centre and sweep apart: the skin moves
+	 * They start together at the center and sweep apart: the skin moves
 	 * each 200px over 117ms on an ease-out quadratic after a 150ms delay,
 	 * and without that they only blinked between frames and read as a
 	 * flicker rather than a movement.
@@ -1607,14 +1607,14 @@
 	 *                afterwards rather than the sticks disappearing
 	 *
 	 * They begin 58px apart rather than on top of each other -- the skin
-	 * puts them at 777 and 835 on a stage whose ending is centred on 806 --
+	 * puts them at 777 and 835 on a stage whose ending is centered on 806 --
 	 * so they read as two sticks sweeping outward rather than one splitting.
 	 *
 	 * A full combo sweeps them further and lifts them: another 150px over
 	 * 700ms eased both ends, times 1.15, and 150px up over 350ms which
 	 * comes back down.
 	 */
-	drawEndingSticks(ctx, elapsed, full, centreX, centreY){
+	drawEndingSticks(ctx, elapsed, full, centerX, centerY){
 		var E = View.ENDING
 		var name, frames, frame
 		if(elapsed < 417){
@@ -1646,9 +1646,9 @@
 		ctx.save()
 		ctx.globalAlpha *= Math.min(1, elapsed / 150)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_l_" + name, frame, frames),
-			centreX - apart, centreY + E.stickY - lift)
+			centerX - apart, centerY + E.stickY - lift)
 		this.drawEndingImage(ctx, this.endingSheet("yatai_ending_bachio_r_" + name, frame, frames),
-			centreX + apart, centreY + E.stickY - lift)
+			centerX + apart, centerY + E.stickY - lift)
 		ctx.restore()
 	}
 	
@@ -1661,14 +1661,14 @@
 	/*
 	 * The letters, with a rainbow running through them.
 	 *
-	 * Drawn on a scratch canvas so the colour lands only where the art
+	 * Drawn on a scratch canvas so the color lands only where the art
 	 * already is: the panel first, then the gradient in "color", which
 	 * takes the hue and leaves the shading and the black outline alone,
 	 * then the panel again in "destination-in" to put the transparency
 	 * back -- a blend mode fills the whole rectangle otherwise.
 	 *
 	 * The gradient runs on a two-second loop, so it reads as moving
-	 * rather than as an oddly coloured picture.
+	 * rather than as an oddly colored picture.
 	 */
 	drawEndingRainbow(ctx, sheet, x, y, elapsed){
 		if(!this.rainbowPanel){
@@ -1731,7 +1731,7 @@
 		return canvas
 	}
 	
-	drawEndingSparkles(ctx, elapsed, centreX, centreY){
+	drawEndingSparkles(ctx, elapsed, centerX, centerY){
 		var since = elapsed - View.ENDING.fcLiftDelay
 		if(since < 0){
 			return
@@ -1757,12 +1757,12 @@
 			scale = Math.max(0, Math.min(1, scale))
 			ctx.save()
 			ctx.globalAlpha *= scale
-			ctx.translate(centreX + Math.cos(angle) * distance * 1.5,
-				centreY + Math.sin(angle) * distance * 0.8)
+			ctx.translate(centerX + Math.cos(angle) * distance * 1.5,
+				centerY + Math.sin(angle) * distance * 0.8)
 			ctx.rotate(life * Math.PI)
 			var size = 1.2 + 2 * scale
 			ctx.scale(size, size)
-			// A coloured star with the white one over it: the colour
+			// A colored star with the white one over it: the color
 			// gives it an edge against a pale background, the white core
 			// keeps it reading as a sparkle rather than a blob.
 			var tinted = this.sparkleTinted(sheet, (i * 47 + Math.floor(elapsed / 8)) % 360)
@@ -1775,14 +1775,14 @@
 		}
 	}
 	
-	drawEndingPanel(ctx, elapsed, panel, full, centreX, centreY, donderful){
+	drawEndingPanel(ctx, elapsed, panel, full, centerX, centerY, donderful){
 		if(elapsed < 150){
 			return
 		}
 		var since = elapsed - 150
 		
 		ctx.save()
-		ctx.translate(centreX, centreY)
+		ctx.translate(centerX, centerY)
 		
 		var E = View.ENDING
 		// The word arrives in pieces and is replaced by the whole image
@@ -1856,12 +1856,12 @@
 	
 	// Not from the skin: YataiDON throws its confetti from the character,
 	// which we do not have. This is a plain fall behind the panel.
-	drawEndingConfetti(ctx, elapsed, centreX, centreY){
+	drawEndingConfetti(ctx, elapsed, centerX, centerY){
 		if(elapsed < 300){
 			return
 		}
 		var since = elapsed - 300
-		var baseY = centreY - 140
+		var baseY = centerY - 140
 		for(var i = 0; i < 24; i++){
 			// Deterministic scatter: the same piece is in the same place
 			// every time, which matters when two players are watching the
@@ -1874,7 +1874,7 @@
 				continue
 			}
 			var fall = (t / 3200) % 1
-			var x = centreX - 300 + seed2 * 600
+			var x = centerX - 300 + seed2 * 600
 			var y = baseY + fall * 330
 			ctx.save()
 			ctx.globalAlpha *= Math.min(1, (1 - fall) * 3)

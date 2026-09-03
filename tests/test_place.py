@@ -52,7 +52,7 @@ def test_the_root_still_works(wheel):
 
 
 def test_a_folder_that_has_gone_falls_back_to_the_root(wheel):
-    """A genre emptied or a favourite removed must not strand the wheel
+    """A genre emptied or a favorite removed must not strand the wheel
     part way down a path that no longer exists."""
     wheel.page.evaluate("""() => {
         localStorage["selectedPath"] = JSON.stringify(["genre:NoSuchThing"])

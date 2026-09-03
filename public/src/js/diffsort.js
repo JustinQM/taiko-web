@@ -343,7 +343,7 @@ class DiffSortSelect{
 	 * and y are offsets from that position rather than absolutes, index
 	 * picks between the positions of a texture that has several, frame
 	 * picks a column of a strip, fade is opacity, and scale grows the
-	 * texture about its own centre.
+	 * texture about its own center.
 	 */
 	tex(ctx, name, config){
 		config = config || {}
@@ -475,9 +475,9 @@ class DiffSortSelect{
 		}
 	}
 
-	// Centred on the texture's own position, which is how every count in
+	// Centered on the texture's own position, which is how every count in
 	// the panel but the star level is placed.
-	centredNumber(ctx, name, value, spacing, config){
+	centeredNumber(ctx, name, value, spacing, config){
 		config = config || {}
 		var width = String(value).length * spacing
 		this.number(ctx, name, value, {
@@ -509,7 +509,7 @@ class DiffSortSelect{
 
 		if(this.inLevelSelect){
 			this.tex(ctx, "stat_starx")
-			// Right-aligned against the star mark rather than centred.
+			// Right-aligned against the star mark rather than centered.
 			var text = String(this.selectedLevel)
 			this.number(ctx, "stat_num_star", text, {
 				spacing: DiffSortSelect.margin1,
@@ -521,13 +521,13 @@ class DiffSortSelect{
 			var cell = this.courseStats[this.selectedBox] || {total: 0, clears: 0, fullCombos: 0}
 		}
 
-		this.centredNumber(ctx, "stat_num", cell.total, DiffSortSelect.margin2)
+		this.centeredNumber(ctx, "stat_num", cell.total, DiffSortSelect.margin2)
 		// Where the skin wrote 全 N 曲 the kanji have been cleared out of
-		// the overlay, so the count is labelled here instead. The two
+		// the overlay, so the count is labeled here instead. The two
 		// crown rows below it are "N / N" either way and need no word.
 		//
 		// One kanji fitted between the number and the panel's edge; a
-		// word does not, and the number is centred so it grows towards
+		// word does not, and the number is centered so it grows towards
 		// that edge as the count gains a digit. So the label takes
 		// whatever room is left rather than a fixed spot, and is squeezed
 		// to fit it -- a course total runs to four digits and leaves
@@ -544,10 +544,10 @@ class DiffSortSelect{
 		// The same total twice, once under each of the two counts below
 		// it: they read as "of this many".
 		for(var j = 0; j < 2; j++){
-			this.centredNumber(ctx, "stat_num_small", cell.total, DiffSortSelect.margin3, {index: j})
+			this.centeredNumber(ctx, "stat_num_small", cell.total, DiffSortSelect.margin3, {index: j})
 		}
-		this.centredNumber(ctx, "stat_num_star", cell.fullCombos, DiffSortSelect.margin1, {index: 1})
-		this.centredNumber(ctx, "stat_num_star", cell.clears, DiffSortSelect.margin1, {index: 2})
+		this.centeredNumber(ctx, "stat_num_star", cell.fullCombos, DiffSortSelect.margin1, {index: 1})
+		this.centeredNumber(ctx, "stat_num_star", cell.clears, DiffSortSelect.margin1, {index: 2})
 	}
 
 	/*
@@ -565,7 +565,7 @@ class DiffSortSelect{
 	}
 
 	/*
-	 * The right-hand edge of the big total, which is drawn centred and so
+	 * The right-hand edge of the big total, which is drawn centered and so
 	 * moves with how many digits it has.
 	 */
 	numberRight(value){
@@ -605,7 +605,7 @@ class DiffSortSelect{
 			var on = i === this.selectedBox
 			this.tex(ctx, on ? "box_highlight" : "box", {x: offset * i, fade: fade})
 		}
-		// The labels are drawn after every box, so a neighbour's box art
+		// The labels are drawn after every box, so a neighbor's box art
 		// cannot land on top of one of them.
 		ctx.save()
 		ctx.globalAlpha = fade

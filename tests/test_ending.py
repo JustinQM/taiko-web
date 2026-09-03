@@ -43,7 +43,7 @@ DRIVE = """
         getGlobalScore: () => ({gauge: 100, bad: args.bad, ok: 0}),
     }
     view.drawEndingAnimation(ctx, 1280, 720)
-    // How far apart the two sticks are, and where things are centred.
+    // How far apart the two sticks are, and where things are centered.
     const sticks = drawn.filter(d => /bachio_[lr]_(in|out)/.test(d.name || ""))
     const spread = sticks.length > 1
         ? Math.max(...sticks.map(s => s.x)) - Math.min(...sticks.map(s => s.x)) : 0
@@ -52,7 +52,7 @@ DRIVE = """
     const pieces = drawn.filter(d => /clear_separated$/.test(d.name || ""))
         .map(d => d.x).sort((a, b) => a - b)
     const gaps = pieces.slice(1).map((x, i) => Math.round((x - pieces[i]) * 10) / 10)
-    const centreX = (view.slotPos.paddingLeft + 1280) / 2
+    const centerX = (view.slotPos.paddingLeft + 1280) / 2
     return {
         asked: [...new Set(asked)],
         drew: drawn.length,
@@ -60,8 +60,8 @@ DRIVE = """
         pieceGaps: gaps,
         pieceSpan: pieces.length ? pieces[pieces.length - 1] - pieces[0] : 0,
         stickOffset: sticks.length
-            ? Math.min(...sticks.map(s => Math.abs(s.x - centreX))) : 0,
-        centres: {y: view.slotPos.y},
+            ? Math.min(...sticks.map(s => Math.abs(s.x - centerX))) : 0,
+        centers: {y: view.slotPos.y},
     }
 }
 """
@@ -136,7 +136,7 @@ def test_the_sticks_end_up_outside_the_word(drive):
     result = drive(2000, cleared=True, bad=3)
     half_word = max(result["pieceSpan"] / 2, 1)
     assert result["stickOffset"] > half_word, \
-        f"sticks sit {result['stickOffset']} from centre, inside a word half-width of {half_word}"
+        f"sticks sit {result['stickOffset']} from center, inside a word half-width of {half_word}"
 
 
 def test_a_fail_shows_the_fail_panel(drive):
@@ -184,8 +184,8 @@ def test_the_sticks_sweep_apart(game, drive):
 def test_everything_lines_up_with_the_play_line(drive):
     """The skin's coordinates are for a fixed stage; this canvas is
     whatever the window is, so the play line is the anchor."""
-    centres = drive(600)["centres"]
-    assert centres["y"] == 257, f"drawn off the play line: {centres}"
+    centers = drive(600)["centers"]
+    assert centers["y"] == 257, f"drawn off the play line: {centers}"
 
 
 def test_it_draws_for_the_second_player_too(drive):

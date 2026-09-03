@@ -1,7 +1,7 @@
 """How the wheel moves.
 
 The structure of song select is tested elsewhere; this is about the feel,
-modelled on YataiDON: an ease-out slide that takes most of the step, input
+modeled on YataiDON: an ease-out slide that takes most of the step, input
 that interrupts rather than being dropped, and held input that turns into
 a jump.
 
@@ -46,10 +46,10 @@ def test_the_slide_decelerates(wheel):
     """
     remaining = wheel.page.evaluate(
         "() => [0.25, 0.5, 0.75].map(f => __ss.slideOffset(f * __ss.songSelecting.speed))")
-    travelled = [1 - r for r in remaining]
-    assert all(t > f for t, f in zip(travelled, [0.25, 0.5, 0.75])), \
-        f"the slide is not ahead of linear: {travelled}"
-    assert travelled[1] > 0.8, f"halfway through, only {travelled[1]:.0%} travelled"
+    traveled = [1 - r for r in remaining]
+    assert all(t > f for t, f in zip(traveled, [0.25, 0.5, 0.75])), \
+        f"the slide is not ahead of linear: {traveled}"
+    assert traveled[1] > 0.8, f"halfway through, only {traveled[1]:.0%} traveled"
 
 
 def test_input_during_a_slide_is_not_dropped(wheel):
@@ -86,7 +86,7 @@ def test_rapid_input_becomes_a_jump(wheel):
 def test_a_jump_lands_immediately(wheel):
     """YataiDON snaps a skip rather than sliding ten boxes past.
 
-    Compared against an ordinary ten-step move, which is still travelling
+    Compared against an ordinary ten-step move, which is still traveling
     at the same point.
     """
     def moved_after(js, wait):

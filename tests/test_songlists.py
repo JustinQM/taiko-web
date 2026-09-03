@@ -1,4 +1,4 @@
-"""Favourites.
+"""Favorites.
 
 Per user, persisted, their own folder, toggled from the wheel. Stored as
 a playlist row from the start so user-created lists later are more rows
@@ -27,8 +27,8 @@ def test_favorites_folder_sits_after_the_genres(wheel):
         "() => __ss.navigator.items.map(i => (i.folder && i.folder.id) || i.action)")
     fav = root.index("collection:favorites")
     genres = [i for i, v in enumerate(root) if isinstance(v, str) and v.startswith("genre:")]
-    assert fav > max(genres), "favourites should come after the genre folders"
-    assert fav < root.index("random"), "favourites should come before the menu entries"
+    assert fav > max(genres), "favorites should come after the genre folders"
+    assert fav < root.index("random"), "favorites should come before the menu entries"
 
 
 def test_favorites_starts_empty(wheel):
@@ -46,7 +46,7 @@ def test_toggling_adds_and_removes(wheel):
     assert wheel.page.evaluate("id => favorites.has(id)", first) is False
 
 
-def test_the_folder_lists_what_was_favourited(wheel):
+def test_the_folder_lists_what_was_favorited(wheel):
     ids = song_ids(wheel)
     wheel.page.evaluate("ids => ids.forEach(id => favorites.toggle(id))", ids)
 
@@ -58,10 +58,10 @@ def test_the_folder_lists_what_was_favourited(wheel):
     assert wheel.errors == []
 
 
-def test_unfavouriting_inside_the_folder_leaves_the_listing_alone(wheel):
+def test_unfavoriting_inside_the_folder_leaves_the_listing_alone(wheel):
     """Removing the song being looked at must not pull it out from under
     the cursor. Rebuilding the listing there moved the selection somewhere
-    unasked for, and with one favourite left it pointed past the end.
+    unasked for, and with one favorite left it pointed past the end.
 
     The change applies on the way back in, which is when a collection
     resolves what is in it.
@@ -89,7 +89,7 @@ def test_unfavouriting_inside_the_folder_leaves_the_listing_alone(wheel):
     assert len(after) == len(ids) - 1
 
 
-def test_unfavouriting_the_last_one_does_not_strand_the_cursor(wheel):
+def test_unfavoriting_the_last_one_does_not_strand_the_cursor(wheel):
     """This softlocked: the listing became just a back box while the
     cursor was still on a song."""
     ids = song_ids(wheel)
@@ -111,12 +111,12 @@ def test_unfavouriting_the_last_one_does_not_strand_the_cursor(wheel):
     wheel.page.wait_for_function("() => __ss.navigator.path.length === 0", timeout=5000)
 
 
-def test_favourites_survive_a_reload_when_logged_out(wheel):
+def test_favorites_survive_a_reload_when_logged_out(wheel):
     first = song_ids(wheel)[0]
     wheel.page.evaluate("id => favorites.toggle(id)", first)
     wheel.load().open_song_select()
     assert wheel.page.evaluate("id => favorites.has(id)", first) is True, \
-        "favourites did not survive a reload"
+        "favorites did not survive a reload"
 
 
 def test_toggling_is_refused_in_a_session(wheel):
@@ -134,10 +134,10 @@ def test_toggling_is_refused_in_a_session(wheel):
             return favorites.songs.length
         } finally { p2.session = real }
     }""", first)
-    assert changed == 0, "a favourite was toggled during a session"
+    assert changed == 0, "a favorite was toggled during a session"
 
 
-def test_only_songs_can_be_favourited(wheel):
+def test_only_songs_can_be_favorited(wheel):
     wheel.select_index(0)   # a genre folder
     wheel.page.evaluate("() => __ss.toggleFavorite()")
     assert wheel.page.evaluate("() => favorites.songs.length") == 0
@@ -147,7 +147,7 @@ def test_only_songs_can_be_favourited(wheel):
 
 @pytest.fixture
 def account(wheel):
-    """Register and sign in, so favourites go to the server."""
+    """Register and sign in, so favorites go to the server."""
     name = "favtest"
     ok = wheel.page.evaluate("""async (name) => {
         const csrf = await fetch("/api/csrftoken").then(r => r.json())
@@ -180,7 +180,7 @@ def account(wheel):
     return wheel
 
 
-def test_favourites_reach_the_server_when_logged_in(account):
+def test_favorites_reach_the_server_when_logged_in(account):
     first = song_ids(account)[0]
     account.page.evaluate("id => favorites.toggle(id)", first)
     account.page.wait_for_timeout(600)
@@ -214,7 +214,7 @@ def test_toggling_twice_leaves_the_server_consistent(account):
 
 # ------------------------------------------------------- recently played
 
-def test_recently_played_folder_follows_favourites(wheel):
+def test_recently_played_folder_follows_favorites(wheel):
     root = wheel.page.evaluate(
         "() => __ss.navigator.items.map(i => (i.folder && i.folder.id) || i.action)")
     assert root.index("collection:recent") == root.index("collection:favorites") + 1
@@ -267,9 +267,9 @@ def test_nothing_is_backfilled(wheel):
     assert wheel.page.evaluate("() => recentlyPlayed.songs.length") == 0
 
 
-# ------------------------------------------------- the favourite button
+# ------------------------------------------------- the favorite button
 
-def test_favourite_is_a_button_on_the_song(wheel):
+def test_favorite_is_a_button_on_the_song(wheel):
     """Not a keybind: the drum and the arrows are the whole vocabulary."""
     options = wheel.page.evaluate("() => __ss.diffOptions.map(o => o.iconName)")
     assert options == ["back", "options", "sounds", "favorite"]
@@ -291,7 +291,7 @@ def test_the_button_toggles_the_song_it_is_shown_with(wheel):
 
 
 def test_the_button_shows_which_state_it_is_in(wheel):
-    """Filled when the song is a favourite, outlined when it is not."""
+    """Filled when the song is a favorite, outlined when it is not."""
     wheel.enter_folder()
     song = wheel.page.evaluate("() => __ss.songs[__ss.selectedSong].id")
     off = wheel.page.evaluate("id => favorites.has(id)", song)
@@ -300,7 +300,7 @@ def test_the_button_shows_which_state_it_is_in(wheel):
     assert (off, on) == (False, True)
 
 
-def test_no_favourite_keybind_remains(wheel):
+def test_no_favorite_keybind_remains(wheel):
     bound = wheel.page.evaluate("""() => {
         const keys = __ss.keyboard.keys || {}
         return Object.keys(keys).includes("favorite")

@@ -56,7 +56,7 @@ class SongSelect{
 			// which is Search's red almost exactly -- and the two sit
 			// next to each other here, where they read as one entry cut
 			// in half. Blue instead: nothing else at the root is, and it
-			// is the colour of the arrows and the return icon on the
+			// is the color of the arrows and the return icon on the
 			// screen this opens.
 			"diffSort": {
 				sort: 0,
@@ -326,7 +326,7 @@ class SongSelect{
 			waitPreview: 0,
 			skip: false
 		}
-		// Modelled on YataiDON. Its wheel does three things on an input:
+		// Modeled on YataiDON. Its wheel does three things on an input:
 		// moves its index at once, slides every box towards where that
 		// index now puts it on an ease-out cubic over 166ms, and opens the
 		// newly selected box over 233ms after a 133ms delay. The opening
@@ -1434,7 +1434,7 @@ class SongSelect{
 				this.toSound(1)
 			}else if(moveBy === 3){
 				// The keyboard has always had this; the mouse did not, so
-				// clicking Favourite fell through to the branch below and
+				// clicking Favorite fell through to the branch below and
 				// asked to load difficulty -1. That tears song select down
 				// before it finds out there is no such course, which is
 				// what froze the game.
@@ -1887,7 +1887,7 @@ class SongSelect{
 		if(!Array.isArray(path) || !path.length){
 			return null
 		}
-		// A folder that has since gone -- a genre emptied, a favourite
+		// A folder that has since gone -- a genre emptied, a favorite
 		// removed -- leaves the navigator at the root rather than
 		// half way down a path that no longer exists.
 		if(!this.navigator.goToPath(path)){
@@ -1963,9 +1963,9 @@ class SongSelect{
 		this.state.selLockMS = this.getMS()
 	}
 	
-	// Which entries are greyed out during a session: anything with an
+	// Which entries are grayed out during a session: anything with an
 	// action that is not one of the two above. The guard below and the
-	// three sites in redraw that draw entries greyed out used to carry
+	// three sites in redraw that draw entries grayed out used to carry
 	// their own copies of this and disagreed about Search.
 	entryDisabledInSession(song){
 		return !!(p2.session && song.action && !this.entryHandlesSessionItself(song))
@@ -2116,7 +2116,7 @@ class SongSelect{
 	 * How wide an entry is drawn when it is not the selected one.
 	 *
 	 * A folder stays at its opened width, so it reads as a block among
-	 * the slats rather than as another slat in a different colour. There
+	 * the slats rather than as another slat in a different color. There
 	 * was no way to see at a glance where the folders were.
 	 */
 	entryWidth(song){
@@ -2137,8 +2137,8 @@ class SongSelect{
 	 */
 	wheelLayout(selectedWidth, xOffset, winW){
 		var margin = this.songAsset.marginLeft
-		var centre = winW / 2 + xOffset
-		var selectedX = centre - selectedWidth / 2
+		var center = winW / 2 + xOffset
+		var selectedX = center - selectedWidth / 2
 		var left = []
 		var edge = selectedX
 		for(var n = 1; ; n++){
@@ -2184,7 +2184,7 @@ class SongSelect{
 			}else{
 				// Everything else with an action lands here: settings,
 				// about, how to play. They are not usable in a session and
-				// the wheel already draws them greyed out, but the press
+				// the wheel already draws them grayed out, but the press
 				// used to vanish with no sound and no sign it had been
 				// noticed. Say no instead of saying nothing.
 				this.playSound("se_cancel", 0, p2.player)
@@ -2282,9 +2282,9 @@ class SongSelect{
 	 * listing, so everything that indexes into it has to be reset with it.
 	 */
 	/*
-	 * Add or remove the selected song from favourites.
+	 * Add or remove the selected song from favorites.
 	 *
-	 * Only songs, and only outside a session: favourites are per-account
+	 * Only songs, and only outside a session: favorites are per-account
 	 * and nothing about them is shared with a peer, so toggling one while
 	 * playing together would change one player's wheel and not the other's.
 	 */
@@ -2297,7 +2297,7 @@ class SongSelect{
 		this.playSound(added ? "se_don" : "se_cancel")
 		
 		// The listing is deliberately left alone, including inside the
-		// favourites folder. Rebuilding it under the cursor pulled the
+		// favorites folder. Rebuilding it under the cursor pulled the
 		// song being looked at out from under it, which at best moved the
 		// selection somewhere unasked for and at worst left the wheel
 		// pointing past the end of a listing that had just got shorter.
@@ -2951,7 +2951,7 @@ class SongSelect{
 			// The cursor has already moved; what is left is the wheel
 			// catching up to it. The offset starts a whole box behind and
 			// eases to nothing on a cubic, so it leaves at once and settles
-			// rather than travelling at a constant speed.
+			// rather than traveling at a constant speed.
 			if(this.state.slide && elapsed < changeSpeed){
 				xOffset = this.slideOffset(elapsed) * this.state.slidePixels
 				songSelMoving = true

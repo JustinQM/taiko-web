@@ -783,7 +783,7 @@ class SettingsView{
 		}
 		(promise || Promise.resolve()).then(() => {
 			this.getValue(name, this.items[this.selected].valueDiv)
-			// A row inside a group is summarised on the group's own row,
+			// A row inside a group is summarized on the group's own row,
 			// which has to be redrawn or it keeps saying the group is
 			// empty while the thing inside it is set.
 			if(current.parent && this.itemsById[current.parent]){

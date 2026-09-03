@@ -31,7 +31,7 @@ For each song in the database, a folder named after the song's ID must exist in 
   - You only need files for the difficulties you want to add.
 - **For both TJA and OSU:** `main.mp3`
 
-In TJA notecharts, `COURSE` labels must correspond to either a numeric or string value as defined below for each difficulty to be recognised:
+In TJA notecharts, `COURSE` labels must correspond to either a numeric or string value as defined below for each difficulty to be recognized:
 
 | ![](https://donderhiroba.jp/image/sp/640/status_10_b4_640.png) | ![](https://donderhiroba.jp/image/sp/640/status_10_b3_640.png) | ![](https://donderhiroba.jp/image/sp/640/status_10_b2_640.png) | ![](https://donderhiroba.jp/image/sp/640/status_10_b1_640.png) | ![](https://donderhiroba.jp/image/sp/640/status_10_b0_640.png) |
 |------|--------|------|---------|---------------|
@@ -47,9 +47,9 @@ If you have ffmpeg installed, taiko-web will generate `preview.mp3` files for ea
 |-----------------|-----------|------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | `id`            | `INTEGER` | Unique song ID                                                                     | `1`                                                                       |
 | `title`         | `TEXT`    | The song's original name (usually in Japanese)                                     | `さいたま２０００`                                                           |
-| `title_lang`    | `TEXT`    | Localised song titles, each on a new line and in the format `<lang> <title>`       | ```en Saitama 2000```<br>```cn 埼玉２０００```<br>```tw 埼玉２０００```<br>```ko 사이타마 2000```    |
+| `title_lang`    | `TEXT`    | Localized song titles, each on a new line and in the format `<lang> <title>`       | ```en Saitama 2000```<br>```cn 埼玉２０００```<br>```tw 埼玉２０００```<br>```ko 사이타마 2000```    |
 | `subtitle`      | `TEXT`    | The song's original subtitle (usually in Japanese)                                 |                                                                           |
-| `subtitle_lang` | `TEXT`    | Localised song subtitles, each on a new line and in the format `<lang> <subtitle>` |                                                                           |
+| `subtitle_lang` | `TEXT`    | Localized song subtitles, each on a new line and in the format `<lang> <subtitle>` |                                                                           |
 | `easy`          | `TEXT`    | Number of stars for Easy difficulty, leave blank if none exists                    | `5`                                                                       |
 | `normal`        | `TEXT`    | Number of stars for Normal difficulty, leave blank if none exists                  | `7`                                                                       |
 | `hard`          | `TEXT`    | Number of stars for Hard difficulty, leave blank if none exists                    | `7`                                                                       |

@@ -78,7 +78,7 @@ def percentile(values, p):
     return ordered[index]
 
 
-def summarise(frames):
+def summarize(frames):
     """Per scene, the shape of the distribution and the frames that hurt."""
     scenes = {}
     for scene, ms in frames:
@@ -179,8 +179,8 @@ def main():
     result = {
         "label": args.label,
         "song": title,
-        "scenes": summarise(frames),
-        "draw": summarise(draws),
+        "scenes": summarize(frames),
+        "draw": summarize(draws),
     }
 
     RESULTS.mkdir(exist_ok=True)
