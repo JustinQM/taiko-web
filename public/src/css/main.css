@@ -100,15 +100,13 @@
 	-webkit-text-stroke: 0.25em #fff;
 }
 
+/*
+ * The build stamp in the bottom-right corner. Hidden rather than
+ * deleted: the About screen reads its href for the version link, and
+ * main.js listens on it. It is clutter over the game and nothing else.
+ */
 #version {
-	position: fixed;
-	z-index: 1000;
-	font-size: 2vh;
-	position: absolute;
-	bottom: 1vh;
-	right: 1vh;
-	opacity: 0.7;
-	font-family: TnT, Meiryo, sans-serif;
+	display: none;
 }
 #version:hover{
 	opacity: 1;
