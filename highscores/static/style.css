@@ -884,7 +884,12 @@ a.tag.clear:hover { border-color: var(--accent); color: var(--accent-2); }
   .tw.cards td.c-place, .tw.cards td.c-rank  { grid-area: 1 / 1; }
   .tw.cards td.c-main,  .tw.cards td.song    { grid-area: 1 / 2; max-width: none; }
   .tw.cards td.c-score                 { grid-area: 1 / 3; text-align: right; }
-  .tw.cards td.c-diff,  .tw.cards td.c-crown { grid-area: 2 / 1; }
+  .tw.cards td.c-diff                  { grid-area: 2 / 1; }
+  /* The crown is its own column on every table now, so on a phone it
+     needs a slot of its own -- except on a song board, where there is
+     no difficulty beside it and row two is free. */
+  .tw.cards td.c-crown                 { grid-area: 3 / 1; }
+  .tw.cards tbody tr:not(:has(td.c-diff)) td.c-crown { grid-area: 2 / 1; }
   .tw.cards td.c-crown { display: block !important; }
   .tw.cards td.c-crown .small { display: none; }
   .tw.cards td.c-sub                   { grid-area: 2 / 2; }

@@ -136,6 +136,7 @@
           <th class="num sortable" data-sort="num">#</th>
           <th class="sortable" data-sort="text">Song</th>
           <th>Difficulty</th>
+          <th>Crown</th>
           <th class="hide-sm">Genre</th>
           {{ ui.score_head() }}
           <th class="num hide-md" title="Players on this chart">Field</th>
@@ -146,7 +147,8 @@
         <tr data-filter-text="{{ p.song.title }} {{ p.song.subtitle or '' }}">
           <td class="num c-rank">{{ ui.rank(p.rank) }}</td>
           {{ ui.song_cell(p.song, p.stars) }}
-          <td class="nowrap c-diff">{{ ui.diff(p.diff) }}{{ ui.crown(p.crown) }}</td>
+          <td class="nowrap c-diff">{{ ui.diff(p.diff) }}</td>
+          <td class="c-crown">{{ ui.crown_slot(p.crown) }}</td>
           <td class="hide-sm c-genre">{{ ui.genre(p.cat) }}</td>
           {{ ui.score_cells(p) }}
           <td class="num hide-md dim c-field">{{ p.players }}</td>

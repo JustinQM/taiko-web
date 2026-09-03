@@ -132,6 +132,7 @@
       <thead>
         <tr>
           <th class="sortable" data-sort="text">Player</th>
+          <th>Crown</th>
           <th class="sortable" data-sort="text">Song</th>
           <th>Difficulty</th>
           <th class="num sortable" data-sort="num">Place</th>
@@ -142,7 +143,8 @@
       <tbody>
       {% for e in feed %}
         <tr>
-          <td class="nowrap c-sub">{{ ui.player(e.user, e.crown) }}</td>
+          <td class="nowrap c-sub">{{ ui.player(e.user) }}</td>
+          <td class="c-crown">{{ ui.crown_slot(e.crown) }}</td>
           {{ ui.song_cell(e.song) }}
           <td class="c-diff">{{ ui.diff(e.diff) }}</td>
           <td class="num nowrap c-place">{% if e.rank %}{{ ui.rank(e.rank, e.players) }}{% else %}<span class="dim">—</span>{% endif %}</td>

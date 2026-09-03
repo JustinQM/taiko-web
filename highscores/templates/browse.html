@@ -37,6 +37,7 @@
           {% if not diff %}<th>Difficulty</th>{% endif %}
           <th class="num sortable" data-sort="num">Players</th>
           <th class="sortable" data-sort="text">Leader</th>
+          <th>Crown</th>
           {{ ui.score_head() }}
         </tr>
       </thead>
@@ -46,7 +47,8 @@
           {{ ui.song_cell(r.song, r.stars, cat=r.cat) }}
           {% if not diff %}<td class="c-diff">{{ ui.diff(r.diff) }}</td>{% endif %}
           <td class="num c-players">{{ r.players }}</td>
-          <td class="nowrap c-sub">{{ ui.player(r.leader.user, r.leader.crown) }}</td>
+          <td class="nowrap c-sub">{{ ui.player(r.leader.user) }}</td>
+          <td class="c-crown">{{ ui.crown_slot(r.leader.crown) }}</td>
           {{ ui.score_cells(r.leader) }}
         </tr>
       {% else %}
