@@ -177,7 +177,13 @@
 		}
 	}
 	run(){
-		if(this.multiplayer !== 2){
+		// The background belongs to the view that draws first, which is
+		// the one in the upper lane -- the same one that clears the
+		// canvas. In a session that is not always the local player's:
+		// whoever is 2P draws second, so a background owned by them
+		// would be painted over the other lane. That is what made the
+		// screen look wrong from the second player's side.
+		if(this.player === 1){
 			this.background = new GameBackground(this)
 		}
 
@@ -300,6 +306,10 @@
 			var frameTop = winH / 2 - 720 / 2
 			var frameLeft = winW / 2 - 1280 / 2
 		}
+		// The background belongs to the screen, not to a player. Drawing
+		// it after the second player's lane offset put the whole thing
+		// 165px down the screen for anyone playing as 2P.
+		var screenTop = frameTop
 		if(this.player === 2){
 			frameTop += 165
 		}
@@ -311,7 +321,7 @@
 				clear: gaugePercent >= this.rules.gaugeClear,
 				rainbow: gaugePercent >= 1
 			})
-			this.background.draw(ctx, frameLeft, frameTop, winW)
+			this.background.draw(ctx, frameLeft, screenTop, winW)
 		}
 		if(touchMultiplayer){
 			if(!this.touchp2Class){

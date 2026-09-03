@@ -193,7 +193,7 @@ class DonBG{
 	 * it is drawn once, where the skin puts it.
 	 */
 	drawBand(ctx, fade, y, frame){
-		var rows = Math.max(1, Math.ceil(GameBackground.TOP / this.bgHeight))
+		var rows = Math.max(1, Math.ceil(this.background.top / this.bgHeight))
 		var xs = this.tiles(this.bgWidth, this.move.attribute)
 		for(var row = 0; row < rows; row++){
 			for(var i = 0; i < xs.length; i++){
@@ -217,7 +217,7 @@ class DonBG{
 		// Repeating the band leaves it a little longer than the gap it
 		// fills; the scene below it should stay the top layer there.
 		ctx.beginPath()
-		ctx.rect(this.background.span.left, 0, this.background.span.width, GameBackground.TOP)
+		ctx.rect(this.background.span.left, 0, this.background.span.width, this.background.top)
 		ctx.clip()
 		this.drawTextures(ctx, 1, y, 0)
 		if(this.isClear){
@@ -1718,6 +1718,11 @@ class GameBackground{
 			return
 		}
 		this.song = view.controller.selectedSong
+		// A session stacks a second set of lanes below the first, so the
+		// scene starts below both of them rather than behind the lower
+		// one. The band above fills the difference by tiling further.
+		this.twoPlayer = !!view.controller.multiplayer
+		this.top = this.twoPlayer ? GameBackground.TOP_2P : GameBackground.TOP
 		this.choice = GameBackground.choose(this.song, this.manifest)
 		this.built = false
 		this.isClear = false
@@ -1936,7 +1941,11 @@ class GameBackground{
 		this.donbg.draw(ctx, 0)
 		if(!this.minimal){
 			this.renda.draw(ctx)
-			this.dancers.draw(ctx, span)
+			// There is no room for them under two sets of lanes; what
+			// would show is their feet.
+			if(!this.twoPlayer){
+				this.dancers.draw(ctx, span)
+			}
 		}
 		this.footer.draw(ctx, span)
 		if(!this.minimal){
@@ -1955,7 +1964,7 @@ class GameBackground{
 	 * and cropped the same way.
 	 */
 	drawScene(ctx, span){
-		var top = GameBackground.TOP
+		var top = this.top
 		ctx.save()
 		ctx.beginPath()
 		ctx.rect(span.left, top, span.width, 720 - top)
@@ -1985,3 +1994,5 @@ class GameBackground{
 // at 360 and its background scene begins there; taiko-web's end at 322,
 // so the band covers the difference rather than leaving a gap.
 GameBackground.TOP = 360
+// A session puts the second player's lanes 165 lower, ending at 487.
+GameBackground.TOP_2P = 487

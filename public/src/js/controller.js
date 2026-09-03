@@ -225,6 +225,22 @@ class Controller{
 			this.view.refresh()
 		}
 	}
+	/*
+	 * The one background on the screen.
+	 *
+	 * It lives on whichever view draws first, and in a session that is
+	 * not always the local player's, so anything that wants to put
+	 * something on it asks here rather than reaching for its own view.
+	 */
+	background(){
+		if(this.view && this.view.background){
+			return this.view.background
+		}
+		if(this.syncWith && this.syncWith.view){
+			return this.syncWith.view.background || null
+		}
+		return null
+	}
 	gameEnded(){
 		var score = this.getGlobalScore()
 		var vp

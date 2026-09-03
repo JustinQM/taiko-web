@@ -310,3 +310,54 @@ def test_a_hit_puts_nothing_on_a_minimal_background(game):
         } catch(e) { return String(e) }
     }""")
     assert errors is None
+
+
+def two_player(page, win_width=1280):
+    """A background built as one is in a session."""
+    page.evaluate(MANIFEST)
+    page.evaluate(SPY)
+    page.evaluate("""(winW) => {
+        window.__ctx = document.createElement("canvas").getContext("2d")
+        window.__bg = new GameBackground({
+            controller: {selectedSong: {title: "test song", hash: "test"}, multiplayer: 1},
+            player: 1,
+            beatInterval: 500
+        })
+        window.__frame = (ms, gauge) => {
+            __bg.update(ms, gauge)
+            window.__drawn = []
+            __bg.draw(__ctx, (winW - 1280) / 2, 0, winW)
+            return window.__drawn
+        }
+    }""", win_width)
+    return page
+
+
+def test_a_session_starts_the_scene_below_the_second_lane(game):
+    """A session stacks a second set of lanes under the first, ending at
+    487 rather than 322. The scene used to start at 360, behind them."""
+    page = two_player(game.page)
+    solo = page.evaluate("() => GameBackground.TOP")
+    session = page.evaluate("() => __bg.top")
+    assert session > solo
+    assert session == page.evaluate("() => GameBackground.TOP_2P")
+
+
+def test_no_dancers_under_two_sets_of_lanes(game):
+    """What would show of them is their feet."""
+    page = two_player(game.page)
+    drawn = page.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.9, clear=True)])
+    assert not any("dancer" in d["tex"] for d in drawn)
+    assert any("donbg" in d["tex"] for d in drawn), "the band should still be there"
+
+
+def test_the_band_still_reaches_the_lanes_in_a_session(game):
+    """It is what fills the space above the scene, and there is more of
+    it to fill."""
+    page = two_player(game.page)
+    drawn = page.evaluate("([ms, g]) => __frame(ms, g)", [0, gauge(0.2)])
+    band = [d["params"].get("y", 0) for d in drawn
+            if d["key"] == "background" and "donbg" in d["tex"]]
+    top = page.evaluate("() => __bg.top")
+    height = page.evaluate("() => __bg.donbg.bgHeight")
+    assert max(band) + height >= top, f"the band stops at {max(band) + height}, needs {top}"
