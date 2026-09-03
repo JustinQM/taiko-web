@@ -488,3 +488,26 @@ def test_the_wheel_travels_the_distance_it_actually_covers(wheel):
     }""")
     assert measured["folderToFolder"] == measured["block"] + measured["margin"]
     assert measured["menuToMenu"] == measured["slat"] + measured["margin"]
+
+
+def test_back_at_the_root_stays_in_song_select(wheel):
+    """Back went to the title screen from anywhere, so the button that
+    leaves a folder also threw you out to a splash you had to press
+    through to get back in -- and it is easy to hit one time too many."""
+    still_here = wheel.page.evaluate("""() => {
+        __ss.toFolderUp()
+        return {alive: !!__ss.redrawRunning, path: __ss.navigator.pathIds()}
+    }""")
+    assert still_here["alive"] is True, "song select was torn down"
+    assert still_here["path"] == []
+
+
+def test_back_inside_a_folder_goes_up_one(wheel):
+    """The same press, one level in, is the one that should do something."""
+    wheel.enter_folder()
+    wheel.settle()
+    assert wheel.path() == ["genre:Pop"]
+    wheel.page.evaluate("() => __ss.toFolderUp()")
+    wheel.page.wait_for_function(
+        "() => __ss.navigator.path.length === 0", timeout=5000)
+    assert wheel.page.evaluate("() => !!__ss.redrawRunning") is True

@@ -1225,7 +1225,11 @@ class SongSelect{
 			}else if(name === "confirm"){
 				this.toSelectDifficulty()
 			}else if(name === "back"){
-				this.toTitleScreen()
+				// Up a folder, or nothing at the root. It went to the
+				// title screen from anywhere, which meant the same button
+				// that leaves a folder also threw you out to a splash you
+				// had to press through to get back in.
+				this.toFolderUp()
 			}else if(name === "session"){
 				this.toSession()
 			}else if(name === "left"){
@@ -2235,9 +2239,12 @@ class SongSelect{
 		}
 		var index = this.navigator.back(this.selectedSong)
 		if(index === null){
-			// The root has no back box, so there is nothing above it.
-			this.clean()
-			this.toTitleScreen()
+			// The root is as far back as it goes. It used to drop out to
+			// the title screen from here, which is a splash you then have
+			// to press through to get back to where you were -- and easy
+			// to hit by accident, because backing out of a folder and
+			// backing out of song select are the same button.
+			this.playSound("se_cancel", 0, fromP2 ? fromP2.player : false)
 			return
 		}
 		this.playSound("se_cancel", 0, fromP2 ? fromP2.player : false)
@@ -2366,15 +2373,6 @@ class SongSelect{
 			this.playSound("se_ka", 0, p2.session ? p2.player : false)
 			this.selectedDiff = 2
 			this.state.sound = this.mod(this.soundList.length, this.state.sound + moveBy)
-	}
-	toTitleScreen(){
-		if(!p2.session){
-			this.playSound("se_cancel")
-			this.clean()
-			setTimeout(() => {
-				new Titlescreen()
-			}, 500)
-		}
 	}
 	toTutorial(){
 		this.playSound("se_don")
