@@ -1573,19 +1573,60 @@
 				return null
 			}
 		}
+		// The crown at each pixel is whichever value most of the frames
+		// agree on.
+		//
+		// "Identical in all five" was the first try and it left a seam
+		// down the crown: the emblems sit in slightly different places,
+		// so a pixel the emblem covers in one frame and not the others
+		// disagrees -- and that is a crown pixel, which then went to the
+		// emblem layer and kept the colour the rotation had moved on
+		// from. A majority ignores the odd frame out.
 		var count = sw * sh
-		var shared = new Uint8Array(count)
+		var crown = new Uint8ClampedArray(count * 4)
 		for(var i = 0; i < count; i++){
-			var same = true
-			for(var f = 1; f < frames && same; f++){
-				for(var k = 0; k < 4; k++){
-					if(read[f][i * 4 + k] !== read[0][i * 4 + k]){
-						same = false
-						break
+			var best = 0
+			var bestCount = 0
+			for(var f = 0; f < frames; f++){
+				var agree = 0
+				for(var g = 0; g < frames; g++){
+					var same = true
+					for(var k = 0; k < 4; k++){
+						if(read[f][i * 4 + k] !== read[g][i * 4 + k]){
+							same = false
+							break
+						}
+					}
+					if(same){
+						agree++
 					}
 				}
+				if(agree > bestCount){
+					bestCount = agree
+					best = f
+				}
 			}
-			shared[i] = same ? 1 : 0
+			// A real majority, not just the frame that got there
+			// first. Where all five emblems overlap, no two frames
+			// agree and the tie went to frame 0 -- putting its whole
+			// emblem in the crown layer, which is what left easy's
+			// flower turning colour while the other four sat still.
+			// Nothing agreed on is emblem, not crown.
+			if(bestCount * 2 > frames){
+				for(var k = 0; k < 4; k++){
+					crown[i * 4 + k] = read[best][i * 4 + k]
+				}
+			}
+		}
+		// Everything a frame does not share with that majority is its
+		// emblem, including the soft edge where it meets the crown.
+		var differs = (source, i) => {
+			for(var k = 0; k < 4; k++){
+				if(source[i * 4 + k] !== crown[i * 4 + k]){
+					return true
+				}
+			}
+			return false
 		}
 		var layer = (source, keep) => {
 			var canvas = document.createElement("canvas")
@@ -1594,7 +1635,7 @@
 			var out = canvas.getContext("2d")
 			var pixels = out.createImageData(sw, sh)
 			for(var i = 0; i < count; i++){
-				if(shared[i] === keep){
+				if(differs(source, i) === keep){
 					for(var k = 0; k < 4; k++){
 						pixels.data[i * 4 + k] = source[i * 4 + k]
 					}
@@ -1604,8 +1645,8 @@
 			return canvas
 		}
 		this.crownParts[key] = {
-			crown: layer(read[0], 1),
-			emblems: read.map(frame => layer(frame, 0))
+			crown: layer(crown, false),
+			emblems: read.map(frame => layer(frame, true))
 		}
 		return this.crownParts[key]
 	}
