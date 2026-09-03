@@ -332,7 +332,7 @@ async def connection(ws, path):
                 elif action == "songsel":
                     # Session song selection
                     if "other_user" in user and "ws" in user["other_user"]:
-                        if msg_type in ("songsel", "catjump", "folder", "folderup", "jumpto"):
+                        if msg_type in ("songsel", "catjump", "folder", "folderup", "jumpto", "diffsort"):
                             # Change song select position. All of them are
                             # echoed to both sides for the same reason: the
                             # two clients apply the move together rather
@@ -340,6 +340,11 @@ async def connection(ws, path):
                             # jumpto names a song by its folder path, which
                             # is what random and search need -- neither is
                             # a move the peer could work out for itself.
+                            # diffsort opens the difficulty picker and then
+                            # carries one press of it at a time; what it
+                            # settles on changes the wheel for both, so it
+                            # is driven together rather than by whoever
+                            # opened it.
                             if user["other_user"]["action"] == "songsel" and type(value) is dict:
                                 value["player"] = user["player"]
                                 sent_msg = msgobj(msg_type, value)

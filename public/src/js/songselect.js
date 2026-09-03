@@ -52,6 +52,18 @@ class SongSelect{
 				border: ["#FF9FB7", "#BE1432"],
 				outline: "#A50B15"
 			},
+			// YataiDON's own 16 Difficulty Sort is #BACKCOLOR:#ff555f,
+			// which is Search's red almost exactly -- and the two sit
+			// next to each other here, where they read as one entry cut
+			// in half. Blue instead: nothing else at the root is, and it
+			// is the colour of the arrows and the return icon on the
+			// screen this opens.
+			"diffSort": {
+				sort: 0,
+				background: "#2d8cf0",
+				border: ["#a5d3ff", "#1257a8"],
+				outline: "#0d4485"
+			},
 			"tutorial": {
 				sort: 0,
 				background: "#29e8aa",
@@ -146,6 +158,20 @@ class SongSelect{
 			updateSearchText: song => this.updateSongSearchText(song)
 		})
 		this.songs = this.navigator.items
+		
+		// The last difficulty search made, which the sixth box of the
+		// picker repeats. It also has to be put back before restorePlace
+		// runs: coming back into song select inside the difficulty
+		// folder finds it empty otherwise, because the filter that
+		// filled it lives here rather than in the folder.
+		this.lastDiffSort = null
+		try{
+			var stored = JSON.parse(localStorage.getItem("lastDiffSort") || "null")
+			if(stored && stored.course >= 0 && stored.level >= 1){
+				this.lastDiffSort = stored
+				this.navigator.diffSort = stored
+			}
+		}catch(e){}
 		
 		this.songAsset = {
 			marginTop: 104,
@@ -1188,6 +1214,14 @@ class SongSelect{
 				this.state.showWarning = false
 				this.showWarning = false
 			}
+		}else if(this.diffSortSelect){
+			// Kat moves, don goes on, escape leaves -- YataiDON's own
+			// mapping, and already what the drum is bound to here.
+			if(name === "left" || name === "right" || name === "confirm"){
+				this.diffSortPress(name === "confirm" ? "select" : name)
+			}else if(name === "back" || name === "session"){
+				this.diffSortPress("back")
+			}
 		}else if (this.search){
 			if(name === "back" || (event && event.keyCode && event.keyCode === 70 && ctrl)) {
 				this.removeSearch(true)
@@ -1357,6 +1391,8 @@ class SongSelect{
 				this.state.showWarning = false
 				this.showWarning = false
 			}
+		}else if(this.diffSortSelect){
+			this.diffSortMouse(mouse.x, mouse.y)
 		}else if(this.state.screen === "song"){
 			if(20 < mouse.y && mouse.y < 90 && 410 < mouse.x && mouse.x < 880 && (mouse.x < 540 || mouse.x > 750)){
 				this.moveToSong(mouse.x < 640 ? -7.1 : 7.1)
@@ -1437,6 +1473,12 @@ class SongSelect{
 			if(408 < mouse.x && mouse.x < 872 && 470 < mouse.y && mouse.y < 550){
 				moveTo = "showWarning"
 			}
+		}else if(this.diffSortSelect){
+			// The wheel underneath keeps no hover while the picker has the
+			// screen; only the picker's own boxes light the pointer.
+			this.state.moveHover = null
+			this.pointer(!!this.diffSortSelect.hit(mouse.x, mouse.y))
+			return
 		}else if(this.state.screen === "song" && !this.search){
 			if(20 < mouse.y && mouse.y < 90 && 410 < mouse.x && mouse.x < 880 && (mouse.x < 540 || mouse.x > 750)){
 				moveTo = mouse.x < 640 ? "categoryPrev" : "categoryNext"
@@ -1468,6 +1510,44 @@ class SongSelect{
 		}
 		this.pointer(moveTo !== null)
 	}
+	/*
+	 * A click on the picker.
+	 *
+	 * Clicking a box the cursor is not on moves to it and clicking the
+	 * one it is on confirms, which is how the wheel below already
+	 * behaves. Everything goes through diffSortPress, so a click in a
+	 * session travels to the peer exactly as a press does.
+	 */
+	diffSortMouse(x, y){
+		var hit = this.diffSortSelect.hit(x, y)
+		if(!hit){
+			// Outside the panel entirely. The option menu closes on this
+			// and so does this, rather than swallowing the click.
+			var bg = DiffSortSelect.pos.background
+			if(x < bg.x || x > bg.x + DiffSortSelect.size.background.w
+			|| y < bg.y || y > bg.y + DiffSortSelect.size.background.h){
+				this.diffSortPress("back")
+			}
+			return
+		}
+		if("move" in hit){
+			this.diffSortPress(hit.move < 0 ? "left" : "right")
+			return
+		}
+		if("index" in hit && hit.index !== this.diffSortCursor()){
+			this.diffSortPress("index", false, hit.index)
+			return
+		}
+		this.diffSortPress("select")
+	}
+	
+	// Which of the picker's three cursors a click is being compared with.
+	diffSortCursor(){
+		var picker = this.diffSortSelect
+		return picker.confirmation ? picker.confirmIndex
+			: picker.inLevelSelect ? picker.selectedLevel : picker.selectedBox
+	}
+	
 	mouseOffset(offsetX, offsetY){
 		return {
 			x: (offsetX * this.pixelRatio - this.winW / 2) / this.ratio + 1280 / 2,
@@ -1821,6 +1901,7 @@ class SongSelect{
 	entryHandlesSessionItself(song){
 		return song.action === "random" || song.action === "search"
 			|| song.action === "folder" || song.action === "back"
+			|| song.action === "diffSort"
 	}
 	
 	// Every message that carries a selection carries the folder it is an
@@ -2138,6 +2219,12 @@ class SongSelect{
 				pageEvents.send("song-select-difficulty", currentSong)
 			}else if(currentSong.action === "folder"){
 				this.toFolder(fromP2)
+			}else if(currentSong.action === "diffSort"){
+				// It holds nothing until it has been asked what to hold.
+				// YataiDON's navigator stops on #COLLECTION:DIFFICULTY in
+				// the same place and waits for the picker rather than
+				// listing anything.
+				this.toDiffSort(fromP2)
 			}else if(currentSong.action === "back"){
 				this.toFolderUp(fromP2)
 			}else if(currentSong.action === "random"){
@@ -2234,6 +2321,115 @@ class SongSelect{
 			return
 		}
 		this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
+		this.enterListing(index)
+	}
+	
+	isDiffSortEntry(song){
+		return !!song && song.action === "diffSort"
+	}
+	
+	/*
+	 * Open the difficulty search.
+	 *
+	 * In a session this is told to the peer first and opened on the echo,
+	 * like descending into a folder -- what it chooses changes the wheel
+	 * for both players, so both have to be standing in it. The last
+	 * search travels with the message because the sixth box repeats it,
+	 * and it is per-player: without this the two clients would resolve
+	 * that box to different levels.
+	 */
+	toDiffSort(fromP2){
+		if(p2.session && !fromP2){
+			if(!this.sendLocked()){
+				this.lockSend()
+				this.sendWithPath("diffsort", {
+					song: this.selectedSong,
+					open: true,
+					prev: this.lastDiffSort || null
+				})
+			}
+			return
+		}
+		this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
+		this.openDiffSort(fromP2 && "prev" in fromP2 ? fromP2.prev : this.lastDiffSort)
+	}
+	
+	openDiffSort(prev){
+		this.endPreview()
+		this.diffSortSelect = new DiffSortSelect(this, prev, this.getMS())
+		this.state.moveHover = null
+		this.playSound("v_diffsort", 0.1)
+	}
+	
+	/*
+	 * One press of the picker: kat either way, don to go on, escape to
+	 * leave. In a session it is sent rather than applied, and both
+	 * clients apply it when it comes back -- the picker is deterministic
+	 * given the same starting state, so the same press lands both of
+	 * them in the same place.
+	 */
+	diffSortPress(name, fromP2, index){
+		if(!this.diffSortSelect){
+			return
+		}
+		if(p2.session && !fromP2){
+			if(!this.sendLocked()){
+				this.lockSend()
+				this.sendWithPath("diffsort", {press: name, index: index})
+			}
+			return
+		}
+		var player = fromP2 ? fromP2.player : false
+		var picker = this.diffSortSelect
+		if(name === "back"){
+			return this.applyDiffSort({cancel: true}, player)
+		}
+		if(name === "index"){
+			picker.inputIndex(index)
+			this.playSound("se_ka", 0, player)
+			return
+		}
+		if(name === "left" || name === "right"){
+			name === "left" ? picker.inputLeft() : picker.inputRight()
+			this.playSound("se_ka", 0, player)
+			return
+		}
+		this.playSound("se_don", 0, player)
+		var result = picker.inputSelect(this.getMS())
+		if(result){
+			this.applyDiffSort(result, player)
+		}
+	}
+	
+	/*
+	 * Close the picker, and fill the folder with what it asked for.
+	 *
+	 * The folder resolves its contents when it is opened, so setting the
+	 * filter and descending is the whole of it. The remembered cursor
+	 * position for that folder goes with the old contents: coming back to
+	 * entry forty of a different search is not coming back to anything.
+	 */
+	applyDiffSort(result, player){
+		this.diffSortSelect = null
+		if(!result || result.cancel){
+			this.playSound("se_cancel", 0, player)
+			return
+		}
+		var chosen = {course: result.course, level: result.level}
+		var previous = this.navigator.diffSort
+		if(!previous || previous.course !== chosen.course || previous.level !== chosen.level){
+			delete this.navigator.lastIndex["collection:diffsort"]
+		}
+		this.navigator.diffSort = chosen
+		this.lastDiffSort = chosen
+		try{
+			localStorage.setItem("lastDiffSort", JSON.stringify(chosen))
+		}catch(e){}
+		var index = this.navigator.enter(this.selectedSong)
+		if(index === null){
+			return
+		}
+		this.playSound("se_don", 0, player)
 		this.enterListing(index)
 	}
 	
@@ -3868,6 +4064,13 @@ class SongSelect{
 			ctx.restore()
 		}
 		
+		// Over the whole screen, wheel and header and footer alike, which
+		// is what makes it read as a screen of its own rather than as a
+		// panel laid on song select.
+		if(this.diffSortSelect){
+			this.diffSortSelect.draw(ctx, frameLeft, frameTop, winW, winH, ms)
+		}
+		
 		if(screen === "titleFadeIn"){
 			ctx.save()
 			
@@ -4765,6 +4968,24 @@ class SongSelect{
 				}
 				return
 			}
+			// Opening the picker carries the entry it was opened from;
+			// every press after that is applied to a picker both sides
+			// already have, so it carries only the press.
+			if(response.type === "diffsort"){
+				if(response.value.open){
+					if(this.followPath(response.value)){
+						this.selectedSong = this.mod(this.songs.length, +response.value.song)
+						this.toDiffSort({
+							player: response.value.player,
+							prev: response.value.prev
+						})
+					}
+				}else if(response.value.press){
+					this.diffSortPress(response.value.press,
+						{player: response.value.player}, response.value.index)
+				}
+				return
+			}
 			// A jump carries where to land rather than where it was sent
 			// from, so it opens that path instead of following the
 			// sender's. Random and search both use it.
@@ -4844,7 +5065,7 @@ class SongSelect{
 			}
 			if(p2.session && (response.type == "songsel" || response.type == "catjump"
 			|| response.type == "folder" || response.type == "folderup"
-			|| response.type == "jumpto")){
+			|| response.type == "jumpto" || response.type == "diffsort")){
 				this.onsongsel(response)
 				this.state.selLock = false
 			}

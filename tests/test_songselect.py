@@ -163,7 +163,7 @@ def test_genre_order_matches_the_old_category_order(wheel):
     assert shape["genres"][-1] == "創作譜面"
     # How to Play and About are no longer at the root: both are read once
     # and never again, and every entry there is a press to scroll past.
-    assert shape["actions"] == ["random", "search", "settings"]
+    assert shape["actions"] == ["random", "search", "diffSort", "settings"]
 
 # What toSelectDifficulty actually does with each kind of entry during a
 # session, rather than what the predicate returns. Testing only the

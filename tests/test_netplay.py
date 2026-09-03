@@ -6,6 +6,8 @@ an index into a listing, so the two clients have to be watched together,
 against the real multiplayer server, doing the thing a player would do.
 """
 
+import json
+
 import pytest
 
 from conftest import TAIKO_URL, Game
@@ -372,3 +374,136 @@ def test_a_missing_title_leaves_the_plate_as_it_was(pair):
     a, b = pair
     assert a.page.evaluate("() => p2.title") == ""
     assert b.page.evaluate("() => p2.title") == ""
+
+
+# ------------------------------------------------- the difficulty search
+
+
+def diffsort_entry(client):
+    return client.page.evaluate(
+        "() => __ss.songs.findIndex(s => __ss.isDiffSortEntry(s))")
+
+
+def diffsort_state(client):
+    return client.page.evaluate("""() => {
+        const p = __ss.diffSortSelect
+        return p && {box: p.selectedBox, level: p.selectedLevel,
+                     levelSelect: p.inLevelSelect,
+                     confirmation: p.confirmation, confirm: p.confirmIndex}
+    }""")
+
+
+def both_have_picker(pair, timeout=8000):
+    for client in pair:
+        client.page.wait_for_function("() => !!__ss.diffSortSelect", timeout=timeout)
+
+
+def press_together(sender, others, name, times=1):
+    """One player presses; both are expected to move.
+
+    Every press goes to the server and comes back to both clients, so the
+    sender's own picker does not move until the echo arrives -- which is
+    what this waits for rather than assuming.
+    """
+    for _ in range(times):
+        before = diffsort_state(sender)
+        sender.page.evaluate("n => __ss.diffSortPress(n)", name)
+        for client in [sender] + others:
+            client.page.wait_for_function(
+                "prev => !__ss.diffSortSelect || JSON.stringify({"
+                "box: __ss.diffSortSelect.selectedBox,"
+                "level: __ss.diffSortSelect.selectedLevel,"
+                "levelSelect: __ss.diffSortSelect.inLevelSelect,"
+                "confirmation: __ss.diffSortSelect.confirmation,"
+                "confirm: __ss.diffSortSelect.confirmIndex}) !== prev",
+                arg=json.dumps(before, separators=(",", ":")), timeout=8000)
+
+
+def test_opening_the_difficulty_search_opens_it_for_both(pair):
+    a, b = pair
+    a.select_index(diffsort_entry(a))
+    a.page.evaluate("() => { __ss.state.locked = 0; __ss.toSelectDifficulty() }")
+    both_have_picker((a, b))
+    assert a.path() == [] and b.path() == [], "one of them descended instead"
+
+
+def test_the_picker_moves_on_both_sides(pair):
+    a, b = pair
+    a.select_index(diffsort_entry(a))
+    a.page.evaluate("() => { __ss.state.locked = 0; __ss.toSelectDifficulty() }")
+    both_have_picker((a, b))
+
+    press_together(a, [b], "right", 4)
+    assert diffsort_state(a)["box"] == 3
+    assert diffsort_state(b)["box"] == 3, "the peer is standing on another course"
+
+    # and the other way round: either player may drive it
+    press_together(b, [a], "left")
+    assert diffsort_state(a)["box"] == 2
+    assert diffsort_state(b)["box"] == 2
+
+
+def test_confirming_puts_both_in_the_same_folder(pair):
+    a, b = pair
+    a.select_index(diffsort_entry(a))
+    a.page.evaluate("() => { __ss.state.locked = 0; __ss.toSelectDifficulty() }")
+    both_have_picker((a, b))
+
+    press_together(a, [b], "right", 4)      # Oni
+    press_together(a, [b], "select")        # into the stars
+    press_together(b, [a], "right", 9)      # ten stars, driven by the peer
+    press_together(a, [b], "select")        # the prompt
+    press_together(a, [b], "select")        # yes
+
+    for client in (a, b):
+        client.page.wait_for_function("() => !__ss.diffSortSelect", timeout=8000)
+        settled(client, ["collection:diffsort"])
+
+    listings = [client.page.evaluate("""() => ({
+        filter: __ss.navigator.diffSort,
+        songs: __ss.songs.filter(s => !s.action).length,
+        first: __ss.songs.filter(s => !s.action).slice(0, 5).map(s => s.id)
+    })""") for client in (a, b)]
+    assert listings[0]["filter"] == {"course": 3, "level": 10}
+    assert listings[0] == listings[1], "the two wheels hold different songs"
+
+
+def test_backing_out_of_the_picker_closes_it_for_both(pair):
+    a, b = pair
+    a.select_index(diffsort_entry(a))
+    a.page.evaluate("() => { __ss.state.locked = 0; __ss.toSelectDifficulty() }")
+    both_have_picker((a, b))
+    b.page.evaluate("() => __ss.diffSortPress('back')")
+    for client in (a, b):
+        client.page.wait_for_function("() => !__ss.diffSortSelect", timeout=8000)
+    assert a.path() == [] and b.path() == []
+
+
+def test_the_repeat_box_resolves_the_same_on_both_sides(pair):
+    """It repeats the opener's last search, which only they know.
+
+    Each client remembers its own last search, so the box has to be
+    resolved from the one that travels with the opening message rather
+    than from whatever each side happens to have.
+    """
+    a, b = pair
+    a.page.evaluate("""() => {
+        __ss.lastDiffSort = {course: 2, level: 6}
+    }""")
+    b.page.evaluate("""() => {
+        __ss.lastDiffSort = {course: 0, level: 1}
+    }""")
+    a.select_index(diffsort_entry(a))
+    a.page.evaluate("() => { __ss.state.locked = 0; __ss.toSelectDifficulty() }")
+    both_have_picker((a, b))
+    for client in (a, b):
+        assert client.page.evaluate("() => __ss.diffSortSelect.prev") == {
+            "course": 2, "level": 6}, "the peer would repeat a different search"
+
+    press_together(a, [b], "right", 6)
+    press_together(a, [b], "select")
+    for client in (a, b):
+        client.page.wait_for_function("() => !__ss.diffSortSelect", timeout=8000)
+        settled(client, ["collection:diffsort"])
+        assert client.page.evaluate("() => __ss.navigator.diffSort") == {
+            "course": 2, "level": 6}

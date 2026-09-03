@@ -112,6 +112,65 @@ var translations = {
 			ko: "최근 플레이"
 		}
 	},
+	diffSort: {
+		title: {
+			ja: "むずかしさからえらぶ",
+			en: "Diff Search",
+			cn: "按难度选曲",
+			tw: "按難度選曲",
+			ko: "난이도로 찾기"
+		},
+		// The sixth box: the search made last time, run again.
+		previous: {
+			ja: "前回",
+			en: "Previous",
+			cn: "上一次",
+			tw: "上一次",
+			ko: "이전"
+		},
+		chooseStars: {
+			ja: "★の数をえらんでね！",
+			en: "Choose a star level!",
+			cn: "请选择星级！",
+			tw: "請選擇星級！",
+			ko: "별 개수를 골라줘!"
+		},
+		confirm: {
+			ja: "このむずかしさでいいカッ？",
+			en: "This difficulty OK?",
+			cn: "就选这个难度吗？",
+			tw: "就選這個難度嗎？",
+			ko: "이 난이도로 할까?"
+		},
+		changeStars: {
+			ja: "★の数をえらびなおす",
+			en: "Change Stars",
+			cn: "重选星级",
+			tw: "重選星級",
+			ko: "별 다시"
+		},
+		ok: {
+			ja: "決定",
+			en: "OK",
+			cn: "确定",
+			tw: "確定",
+			ko: "확인"
+		},
+		changeDifficulty: {
+			ja: "むずかしさをえらびなおす",
+			en: "Change Difficulty",
+			cn: "重选难度",
+			tw: "重選難度",
+			ko: "난이도 다시"
+		},
+		songs: {
+			ja: "曲",
+			en: "Songs",
+			cn: "首",
+			tw: "首",
+			ko: "곡"
+		}
+	},
 	randomSong: {
 		ja: "ランダムに曲をえらぶ",
 		en: "Random Song",
@@ -363,6 +422,13 @@ var translations = {
 		cn: "魔王",
 		tw: "魔王",
 		ko: "귀신"
+	},
+	ura: {
+		ja: "うら",
+		en: "Ura",
+		cn: "里谱面",
+		tw: "裏譜面",
+		ko: "뒤"
 	},
 	songBranch: {
 		ja: "譜面分岐あり",

@@ -14,6 +14,17 @@ class SongNavigator{
 	// the top of a folder of several hundred is not a way out.
 	static backEvery = 10
 	
+	// The difficulty search's courses, in the order its boxes are drawn.
+	//
+	// YataiDON stops each course at a fixed star -- 5, 7, 8, 10, 10 --
+	// because its star_limit artwork is five pre-drawn strips saying so.
+	// Ours draws that line as text, so the cap can come from the library
+	// instead, and every chart in it is reachable. The ceiling below is
+	// only a guard against a .tja claiming something absurd; nothing in
+	// the library comes near it.
+	static diffSortCourses = ["easy", "normal", "hard", "oni", "ura"]
+	static diffSortCeiling = 20
+	
 	constructor(...args){
 		this.init(...args)
 	}
@@ -30,6 +41,9 @@ class SongNavigator{
 		// YataiDON keeps reopen_folder_path and reopen_song_path for this
 		// and it matters more in use than it sounds.
 		this.lastIndex = {}
+		// What the difficulty search folder is currently showing. Null
+		// until the picker has been through once.
+		this.diffSort = null
 		this.songItems = this.buildSongs()
 		this.items = this.buildRoot()
 	}
@@ -228,7 +242,7 @@ class SongNavigator{
 		}
 		for(var i = 0; i < ids.length; i++){
 			var index = this.items.findIndex(item =>
-				this.isFolder(item) && item.folder.id === ids[i])
+				item.folder && item.folder.id === ids[i])
 			if(index === -1){
 				while(this.stack.length){
 					this.back(0)
@@ -293,6 +307,96 @@ class SongNavigator{
 		return this.listSongs(typeof favorites !== "undefined" && favorites)
 	}
 	
+	/*
+	 * Every chart at one course and one star level, across the whole
+	 * library rather than within a genre.
+	 *
+	 * YataiDON walks each sibling genre folder and keeps the songs whose
+	 * course_data has that course at exactly that level. Exactly: a
+	 * ten-star search is ten-star charts, not ten and above. Ours is the
+	 * same test over the flat song list, which is the same set.
+	 */
+	diffSortSongs(course, level){
+		var name = SongNavigator.diffSortCourses[course]
+		if(!name){
+			return []
+		}
+		return this.songItems.filter(song =>
+			song.courses && song.courses[name] && song.courses[name].stars === level)
+	}
+	
+	/*
+	 * How many charts there are at each course and level, how many are
+	 * cleared and how many are full combos -- the panel down the left of
+	 * the picker.
+	 *
+	 * YataiDON parses every .tja on the disk for this and does it on a
+	 * background thread while song select loads. Ours is one pass over a
+	 * list already in memory, so the picker just asks for it when it
+	 * opens and holds on to what it gets -- no cache to go stale behind
+	 * a login finishing or a peer's crowns arriving.
+	 */
+	diffSortStats(){
+		var courses = SongNavigator.diffSortCourses
+		var ceiling = SongNavigator.diffSortCeiling
+		var stats = courses.map(() => {
+			var levels = []
+			for(var i = 0; i <= ceiling; i++){
+				levels.push({total: 0, clears: 0, fullCombos: 0})
+			}
+			return levels
+		})
+		var haveScores = typeof scoreStorage !== "undefined"
+		this.songItems.forEach(song => {
+			if(!song.courses){
+				return
+			}
+			var score = haveScores ? scoreStorage.scores[song.hash] : null
+			for(var course = 0; course < courses.length; course++){
+				var chart = song.courses[courses[course]]
+				if(!chart){
+					continue
+				}
+				var level = chart.stars
+				if(!(level >= 1) || level > ceiling){
+					continue
+				}
+				var cell = stats[course][level]
+				cell.total++
+				var crown = score && score[courses[course]] && score[courses[course]].crown
+				if(!crown){
+					continue
+				}
+				cell.clears++
+				// silver is a clear and nothing more; gold and rainbow are
+				// both full combos, which is the split YataiDON draws.
+				if(crown !== "silver"){
+					cell.fullCombos++
+				}
+			}
+		})
+		return stats
+	}
+	
+	/*
+	 * The highest star level each course actually has a chart at, which
+	 * is how far its half of the picker goes.
+	 *
+	 * A course with nothing in it at all still offers one star rather
+	 * than none, so the screen has something to stand on.
+	 */
+	diffSortLimits(stats){
+		stats = stats || this.diffSortStats()
+		return stats.map(levels => {
+			for(var level = levels.length - 1; level >= 1; level--){
+				if(levels[level].total){
+					return level
+				}
+			}
+			return 1
+		})
+	}
+	
 	folderId(item){
 		return item.folder ? item.folder.id : null
 	}
@@ -311,7 +415,9 @@ class SongNavigator{
 	 */
 	enter(index){
 		var item = this.items[index]
-		if(!this.isFolder(item)){
+		// Carrying a folder rather than being drawn as one: the
+		// difficulty search is a slim entry and still descends.
+		if(!item || !item.folder){
 			return null
 		}
 		this.stack.push({
@@ -391,10 +497,17 @@ class SongNavigator{
 	 *
 	 * YataiDON drives the order from numeric directory-name prefixes:
 	 * genres 01 to 09, then 11 Dan Dojo, 13 Recommended, 14 Favorites,
-	 * 15 Recently Played, 16 Difficulty Sort, 17 New, 18 Search. Dan Dojo,
-	 * Difficulty Sort and Recommended are left out: we have no dan mode,
-	 * search already filters by difficulty, and nothing here can base a
-	 * recommendation on anything.
+	 * 15 Recently Played, 16 Difficulty Sort, 17 New, 18 Search. Dan Dojo
+	 * and Recommended are left out: we have no dan mode, and nothing here
+	 * can base a recommendation on anything.
+	 *
+	 * Difficulty Sort was left out too, on the grounds that the search
+	 * box already takes an "oni:9" filter. Browsing by course and level
+	 * is not that: it is a screen that tells you how many ten-star Oni
+	 * charts there are and how many of them you have cleared, and then
+	 * puts them in the wheel. It goes after Search rather than before
+	 * Random, which is where YataiDON has it -- the three ways of finding
+	 * a song that is not in front of you read better together.
 	 */
 	buildRoot(){
 		var config = this.config
@@ -427,6 +540,28 @@ class SongNavigator{
 				action: "search",
 				category: strings.search.search
 			})
+			// Opening this does not list anything: the picker comes up
+			// first and what it chooses is what the folder then holds.
+			// SongSelect intercepts it, the way YataiDON's navigator
+			// stops on #COLLECTION:DIFFICULTY and waits.
+			//
+			// So it is drawn as a slim entry rather than as a folder
+			// box, next to Random and Search. It is one of the ways of
+			// finding a song you cannot see, which is what those are;
+			// a folder box promises a listing behind it, and there is
+			// none until the picker has been answered. It still carries
+			// a folder for the answer to fill.
+			var diffSort = this.collectionFolder({
+				id: "collection:diffsort",
+				title: strings.diffSort.title,
+				skin: skin.diffSort,
+				songs: () => this.diffSort
+					? this.diffSortSongs(this.diffSort.course, this.diffSort.level)
+					: []
+			})
+			diffSort.action = "diffSort"
+			delete diffSort.canJump
+			items.push(diffSort)
 		}
 		// How to Play and About are read once and never again, and at the
 		// root every entry costs a press to scroll past. Both are still
