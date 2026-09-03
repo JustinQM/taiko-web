@@ -1456,6 +1456,16 @@
 		if(config.shine){
 			ctx.globalAlpha *= 1 - config.shine
 		}
+		if(config.size){
+			// The skin's own size, for the one place that wants the crown
+			// at the size the skin draws it rather than at whatever the
+			// fallback path's box happens to be. Squeezing a square 152px
+			// crown into a 94x78 box both shrinks it and flattens it.
+			var height = config.size * img.naturalHeight / img.naturalWidth
+			ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight,
+				47 - config.size / 2, 39 - height / 2, config.size, height)
+			return true
+		}
 		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, 94, 78)
 		return true
 	}

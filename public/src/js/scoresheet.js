@@ -807,6 +807,9 @@ class Scoresheet{
 							scale: crownScale,
 							shine: shine,
 							whiteOutline: true,
+							// The skin draws its results crown 152 across
+							// on a 1280x720 screen, which is what this is.
+							size: 152,
 							ratio: ratio
 						})
 						
