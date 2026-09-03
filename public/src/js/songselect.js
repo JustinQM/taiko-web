@@ -1652,11 +1652,16 @@ class SongSelect{
 			if(sinceLast < this.songSelecting.repeatInterval){
 				return
 			}
-		}else if(!ctrl && Math.abs(moveBy) === 1 && sinceLast <= this.songSelecting.skipWindow){
+		}else if(!fromP2 && !ctrl && Math.abs(moveBy) === 1 && sinceLast <= this.songSelecting.skipWindow){
 			// Two deliberate presses in quick succession. Like the ctrl
 			// jump, this lands immediately: starting the clock before the
 			// animation window means redraw finds it already finished, so
 			// the wheel snaps rather than sliding ten boxes past.
+			//
+			// Only for presses made here. A move from the peer is an
+			// index it has already committed to, and turning it into ten
+			// because two of them arrived close together lands the two
+			// clients on different songs.
 			moveBy *= this.songSelecting.skipBy
 			ctrl = true
 			ms = now - 799
@@ -1664,8 +1669,8 @@ class SongSelect{
 		this.lastMoveAt = now
 		
 		if(p2.session && !fromP2){
-			if(!this.state.selLock && ms > this.state.moveMS + 800){
-				this.state.selLock = true
+			if(!this.sendLocked()){
+				this.lockSend()
 				this.sendWithPath("songsel", {
 					song: this.mod(this.songs.length, this.selectedSong + moveBy)
 				})
@@ -1713,9 +1718,8 @@ class SongSelect{
 			return this.moveToSong(moveBy * this.songSelecting.skipBy)
 		}
 		if(p2.session && !fromP2){
-			var ms = this.getMS()
-			if(!this.state.selLock && ms > this.state.moveMS + 800){
-				this.state.selLock = true
+			if(!this.sendLocked()){
+				this.lockSend()
 				this.sendWithPath("catjump", {
 					song: this.selectedSong,
 					move: moveBy
@@ -1827,6 +1831,37 @@ class SongSelect{
 		this.state.catJump = false
 		this.endPreview()
 		return true
+	}
+	
+	/*
+	 * One message in flight at a time.
+	 *
+	 * Every move in a session is sent and then applied on the echo, so a
+	 * second must not be sent before the first comes back. That was
+	 * guarded by a flag plus a floor of 800ms between moves -- and the
+	 * floor is what made netplay navigation feel broken, because at a
+	 * normal scrolling pace it threw away four presses out of five. The
+	 * flag alone is the right limit: it lets the wheel move as fast as
+	 * the round trip allows.
+	 *
+	 * It does expire. A flag that is only ever cleared by a reply is a
+	 * flag that a lost reply leaves set for good, and the floor had been
+	 * covering for that too.
+	 */
+	sendLocked(){
+		if(!this.state.selLock){
+			return false
+		}
+		if(this.getMS() - (this.state.selLockMS || 0) > 1000){
+			this.state.selLock = false
+			return false
+		}
+		return true
+	}
+	
+	lockSend(){
+		this.state.selLock = true
+		this.state.selLockMS = this.getMS()
 	}
 	
 	// Which entries are greyed out during a session: anything with an
@@ -2057,6 +2092,22 @@ class SongSelect{
 			}else if(currentSong.action === "back"){
 				this.toFolderUp(fromP2)
 			}else if(currentSong.action === "random"){
+				// Only one client may roll the dice, so the song it rolled
+				// travels with the message and both act on the echo -- the
+				// same shape as opening a folder. Rolling separately would
+				// send the two of them to different songs, and rolling
+				// without telling the peer at all, which is what this did,
+				// leaves it standing on Random.
+				if(p2.session && !fromP2){
+					if(!this.sendLocked()){
+						var chosen = this.navigator.randomSong()
+						if(chosen){
+							this.lockSend()
+							p2.send("random", {path: chosen.path, song: chosen.index})
+						}
+					}
+					return
+				}
 				this.playSound("se_don", 0, fromP2 ? fromP2.player : false)
 				this.state.locked = true
 				var target = this.navigator.randomSong()
@@ -2124,8 +2175,8 @@ class SongSelect{
 		if(p2.session && !fromP2){
 			// Tell the peer first and act on the echo, so both clients
 			// descend at the same moment rather than one leading.
-			if(!this.state.selLock){
-				this.state.selLock = true
+			if(!this.sendLocked()){
+				this.lockSend()
 				this.sendWithPath("folder", {song: this.selectedSong})
 			}
 			return
@@ -2143,8 +2194,8 @@ class SongSelect{
 	 */
 	toFolderUp(fromP2){
 		if(p2.session && !fromP2){
-			if(!this.state.selLock){
-				this.state.selLock = true
+			if(!this.sendLocked()){
+				this.lockSend()
 				this.sendWithPath("folderup", {song: this.selectedSong})
 			}
 			return
@@ -2182,8 +2233,8 @@ class SongSelect{
 	
 	toSongSelect(fromP2){
 		if(p2.session && !fromP2){
-			if(!this.state.selLock){
-				this.state.selLock = true
+			if(!this.sendLocked()){
+				this.lockSend()
 				this.sendWithPath("songsel", {
 					song: this.selectedSong
 				})
@@ -4611,6 +4662,17 @@ class SongSelect{
 				}
 				return
 			}
+			// Random carries where to land rather than where it was sent
+			// from, so it opens the path instead of following it.
+			if(response.type === "random"){
+				var landed = this.navigator.jumpToPath(response.value.path, +response.value.song)
+				if(landed !== null){
+					this.playSound("se_don", 0, response.value.player)
+					this.enterListing(landed)
+					pageEvents.send("song-select-random")
+				}
+				return
+			}
 			if(!this.followPath(response.value)){
 				return
 			}
@@ -4675,7 +4737,8 @@ class SongSelect{
 				this.onusers(response)
 			}
 			if(p2.session && (response.type == "songsel" || response.type == "catjump"
-			|| response.type == "folder" || response.type == "folderup")){
+			|| response.type == "folder" || response.type == "folderup"
+			|| response.type == "random")){
 				this.onsongsel(response)
 				this.state.selLock = false
 			}
