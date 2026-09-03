@@ -51,6 +51,7 @@ var assets = {
 		"game.css",
 		"debug.css",
 		"view.css",
+		"results.css",
 		"search.css"
 	],
 	"assetsCss": [
