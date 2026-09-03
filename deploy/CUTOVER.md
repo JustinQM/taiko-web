@@ -5,8 +5,10 @@ mia-taiko-web cloning this repo and patching it with sed. The new build
 is `taiko-web-mia:latest`, built from this repo plus a private asset
 layer. This is what changes and in what order.
 
-Written 2026-09-02, before the first cutover. If mia has been redeployed
-since, re-check the current state section against reality first.
+Written 2026-09-02, before the first cutover, and re-checked against mia
+the same day: still on `taiko-web:latest`, `PLUGINS` still in config,
+`MULTIPLAYER_BIND` still absent, nginx.conf still bind-mounted. If mia
+has been redeployed since, re-check the current state section first.
 
 ## The short version
 
@@ -65,6 +67,10 @@ screen.
 
 ### compose (in Portainer)
 
+The stack is **taiko-web**, under Stacks in the Portainer UI. Editing it
+there is the only way to change it: there is no compose file on disk to
+edit, and `docker compose` on mia will not find the stack.
+
 - change the three `image:` lines from `taiko-web:latest` to
   `taiko-web-mia:latest`
 - delete the nginx `nginx.conf` bind mount line:
@@ -97,6 +103,16 @@ Then, in one sitting:
 1. edit `/mnt/Data/taiko/config.py` (both edits)
 2. update the Portainer stack (image names, drop the nginx mount)
 3. redeploy the stack
+
+In Portainer, step 3 is **Stacks -> taiko-web -> Update the stack**, with
+**Re-pull image** left OFF. The images are local -- loaded by deploy.sh,
+not pulled from a registry -- and asking Portainer to re-pull them makes
+it try a registry that does not have them and fail the deploy. `Prune
+services` off as well; nothing has been removed from the stack.
+
+Portainer restarts every container in the stack, including mongo and
+redis. That is fine -- both have their data on bind mounts under
+`/mnt/Data/taiko` -- but the site is down for the few seconds it takes.
 
 Config first, because the app reads it at startup and step 3 is what
 restarts it. Doing it the other way means the app comes up on the old
@@ -147,9 +163,10 @@ there is no data to roll back and no migration to undo. Scores, users and
 songs are untouched.
 
 The one thing that does not roll back automatically: browsers that loaded
-the new build cached its assets under a new `?<commit>-<tag>` cache key.
-Rolling back serves the old key again, so they will re-fetch. No action
-needed, just expect a slow first load.
+the new build cached its assets under a new cache key --
+`?<commit>-<tag>-<source hash>-<asset hash>`. Rolling back serves the old
+key again, so they will re-fetch. No action needed, just expect a slow
+first load.
 
 ## Not part of this cutover
 
