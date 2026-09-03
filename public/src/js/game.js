@@ -248,8 +248,9 @@ class Game{
 		if(this.multiplayer || this.controller.autoPlayEnabled){
 			return
 		}
+		// No entry for a GOOD: stopping the song because a note was
+		// played correctly is not a mode anyone wants.
 		var setting = {
-			450: "spartanGood",
 			230: "spartanOk",
 			0: "spartanBad",
 			"-1": "spartanBad"

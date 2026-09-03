@@ -428,20 +428,10 @@ class SongNavigator{
 				category: strings.search.search
 			})
 		}
-		if(config.showTutorial){
-			items.push({
-				title: strings.howToPlay,
-				skin: skin.tutorial,
-				action: "tutorial",
-				category: strings.howToPlay
-			})
-		}
-		items.push({
-			title: strings.aboutSimulator,
-			skin: skin.about,
-			action: "about",
-			category: strings.aboutSimulator
-		})
+		// How to Play and About are read once and never again, and at the
+		// root every entry costs a press to scroll past. Both are still
+		// reachable -- the tutorial from a fresh profile, About from the
+		// version link -- they are just not in the way any more.
 		items.push({
 			title: strings.gameSettings,
 			skin: skin.settings,

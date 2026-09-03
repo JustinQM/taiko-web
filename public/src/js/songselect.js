@@ -143,8 +143,7 @@ class SongSelect{
 			songs: assets.songs,
 			skin: this.songSkin,
 			addSong: song => this.addSong(song),
-			updateSearchText: song => this.updateSongSearchText(song),
-			showTutorial: !touchEnabled
+			updateSearchText: song => this.updateSongSearchText(song)
 		})
 		this.songs = this.navigator.items
 		

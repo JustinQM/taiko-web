@@ -1131,6 +1131,15 @@ var translations = {
 				ko: "곡 선택 스크롤 속도"
 			}
 		},
+		spartanMode: {
+			name: {
+				ja: "スパルタモード",
+				en: "Spartan Mode",
+				cn: "斯巴达模式",
+				tw: "斯巴達模式",
+				ko: "스파르타 모드"
+			}
+		},
 		spartanGood: {
 			name: {
 				ja: "スパルタモード: 良",
@@ -1170,11 +1179,11 @@ var translations = {
 		},
 		spartanOk: {
 			name: {
-				ja: "スパルタモード: 可",
-				en: "Spartan Mode: OK",
-				cn: "斯巴达模式: 可",
-				tw: "斯巴達模式: 可",
-				ko: "스파르타 모드: 좋다"
+				ja: "可のとき",
+				en: "On an OK",
+				cn: "可的时候",
+				tw: "可的時候",
+				ko: "좋다일 때"
 			},
 			continue: {
 				ja: "演奏をつづける",
@@ -1207,11 +1216,11 @@ var translations = {
 		},
 		spartanBad: {
 			name: {
-				ja: "スパルタモード: 不可",
-				en: "Spartan Mode: BAD",
-				cn: "斯巴达模式: 不可",
-				tw: "斯巴達模式: 不可",
-				ko: "스파르타 모드: 에구"
+				ja: "不可のとき",
+				en: "On a BAD",
+				cn: "不可的时候",
+				tw: "不可的時候",
+				ko: "어이쿠일 때"
 			},
 			continue: {
 				ja: "演奏をつづける",

@@ -16,6 +16,42 @@ class Settings{
 				options: this.allLanguages,
 				default: this.getLang()
 			},
+			volume: {
+				type: "number",
+				default: 70,
+				min: 0,
+				max: 100,
+				step: 5,
+				format: "%s%"
+			},
+			// The gameplay background as YataiDON draws it has dancers,
+			// characters running across on every hit, and a good deal of
+			// motion. Not everyone wants that behind the notes.
+			minimalBackground: {
+				type: "toggle",
+				default: false
+			},
+			// One row that opens to reveal what a miss should do. There
+			// is no entry for a GOOD: stopping the song when you play a
+			// note correctly is not a mode anyone wants.
+			spartanMode: {
+				type: "submenu",
+				children: ["spartanOk", "spartanBad"]
+			},
+			spartanOk: {
+				type: "select",
+				options: ["continue", "results", "retry", "back_to_select_song"],
+				default: "continue",
+				parent: "spartanMode",
+				indent: 1
+			},
+			spartanBad: {
+				type: "select",
+				options: ["continue", "results", "retry", "back_to_select_song"],
+				default: "continue",
+				parent: "spartanMode",
+				indent: 1
+			},
 			tjaTitle: {
 				type: "select",
 				options: ["title", "titleja", "titleen", "titlecn", "titletw", "titleko"],
@@ -55,14 +91,6 @@ class Settings{
 					"drumSounds": true
 				}
 			},
-			volume: {
-				type: "number",
-				default: 70,
-				min: 0,
-				max: 100,
-				step: 5,
-				format: "%s%"
-			},
 			songSelectSpeed: {
 				type: "number",
 				// 1x is YataiDON's 166ms per step. The old default of 2x
@@ -75,21 +103,6 @@ class Settings{
 				fixedPoint: 2,
 				format: "%sx"
 			},
-			spartanGood: {
-				type: "select",
-				options: ["continue", "results", "retry", "back_to_select_song"],
-				default: "continue"
-			},
-			spartanOk: {
-				type: "select",
-				options: ["continue", "results", "retry", "back_to_select_song"],
-				default: "continue"
-			},
-			spartanBad: {
-				type: "select",
-				options: ["continue", "results", "retry", "back_to_select_song"],
-				default: "continue"
-			},
 			easierBigNotes: {
 				type: "toggle",
 				default: false
@@ -97,13 +110,6 @@ class Settings{
 			showLyrics: {
 				type: "toggle",
 				default: true
-			},
-			// The gameplay background as YataiDON draws it has dancers,
-			// characters running across on every hit, and a good deal of
-			// motion. Not everyone wants that behind the notes.
-			minimalBackground: {
-				type: "toggle",
-				default: false
 			}
 		}
 		
@@ -366,6 +372,7 @@ class SettingsView{
 		// settings.items, an object keyed by name, this.items[name] is
 		// undefined. Keep a lookup by id so both work.
 		this.itemsById = {}
+		this.openGroups = {}
 		this.selected = 0
 		for(let i in this.settingsItems){
 			var current = this.settingsItems[i]
@@ -378,6 +385,11 @@ class SettingsView{
 			}
 			var settingBox = document.createElement("div")
 			settingBox.classList.add("setting-box")
+			// A row belonging to a group is built like any other and
+			// folded away until its group is opened.
+			if(current.parent){
+				settingBox.style.display = "none"
+			}
 			if(current.indent){
 				settingBox.style.marginLeft = (2 * current.indent || 0).toString() + "em"
 			}
@@ -397,6 +409,7 @@ class SettingsView{
 			valueDiv.classList.add("setting-value")
 			let outputObject = {
 				id: i,
+				hidden: !!current.parent,
 				settingBox: settingBox,
 				nameDiv: nameDiv,
 				valueDiv: valueDiv,
@@ -623,6 +636,17 @@ class SettingsView{
 			return
 		}
 		var current = this.settingsItems[name]
+		if(current.type === "submenu"){
+			// The row itself stores nothing. What it shows is what is
+			// inside it, so the group can stay shut and still say
+			// whether anything in it is set.
+			var summary = current.children.map(child => {
+				var childValue = settings.getItem(child)
+				return childValue === "continue" ? null : strings.settings[child][childValue]
+			}).filter(Boolean)
+			valueDiv.innerText = summary.length ? summary.join(", ") : strings.settings.off
+			return
+		}
 		if(current.getItem){
 			var value = current.getItem()
 		}else{
@@ -675,6 +699,26 @@ class SettingsView{
 		}
 		valueDiv.innerText = value
 	}
+	/*
+	 * Open or shut a group of settings.
+	 *
+	 * Its rows are built with the rest and folded away; opening one is a
+	 * matter of unfolding them and letting the cursor reach them again.
+	 */
+	toggleGroup(name){
+		var current = this.settingsItems[name]
+		var open = !this.openGroups[name]
+		this.openGroups[name] = open
+		current.children.forEach(child => {
+			var row = this.itemsById[child]
+			if(row){
+				row.hidden = !open
+				row.settingBox.style.display = open ? "" : "none"
+			}
+		})
+		this.playSound(open ? "se_don" : "se_cancel")
+		this.scrollTo(this.itemsById[name].settingBox)
+	}
 	setValue(name){
 		var promise
 		var current = this.settingsItems[name]
@@ -700,7 +744,9 @@ class SettingsView{
 			this.selected = selectedIndex
 			selected.settingBox.classList.add("selected")
 		}
-		if(current.type === "language" || current.type === "select"){
+		if(current.type === "submenu"){
+			return this.toggleGroup(name)
+		}else if(current.type === "language" || current.type === "select"){
 			value = current.options[this.mod(current.options.length, current.options.indexOf(value) + 1)]
 		}else if(current.type === "toggle"){
 			value = !value
@@ -737,6 +783,12 @@ class SettingsView{
 		}
 		(promise || Promise.resolve()).then(() => {
 			this.getValue(name, this.items[this.selected].valueDiv)
+			// A row inside a group is summarised on the group's own row,
+			// which has to be redrawn or it keeps saying the group is
+			// empty while the thing inside it is set.
+			if(current.parent && this.itemsById[current.parent]){
+				this.getValue(current.parent, this.itemsById[current.parent].valueDiv)
+			}
 			this.playSound("se_ka")
 			if(current.type === "language"){
 				this.setLang(allStrings[value])
@@ -770,7 +822,10 @@ class SettingsView{
 				selected.settingBox.classList.remove("selected")
 				do{
 					this.selected = this.mod(this.items.length, this.selected + ((name === "right" || name === "down") ? 1 : -1))
-				}while(this.items[this.selected].id === "default" && name !== "left")
+				}while(
+					this.items[this.selected].hidden
+					|| this.items[this.selected].id === "default" && name !== "left"
+				)
 				selected = this.items[this.selected]
 				selected.settingBox.classList.add("selected")
 				this.scrollTo(selected.settingBox)

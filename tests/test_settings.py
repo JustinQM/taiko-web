@@ -111,7 +111,11 @@ def test_song_select_speed_persists_and_is_applied(game):
     assert game.errors == []
 
 
-SPARTAN_ROWS = ["Spartan Mode: GOOD", "Spartan Mode: OK", "Spartan Mode: BAD"]
+# One row that opens onto the two that matter. There is no GOOD any
+# more: stopping the song because a note was played correctly is not a
+# mode anyone wants.
+SPARTAN_GROUP = "Spartan Mode"
+SPARTAN_ROWS = ["On an OK", "On a BAD"]
 
 
 def test_spartan_rows_render_their_options(game):
@@ -123,6 +127,7 @@ def test_spartan_rows_render_their_options(game):
     resolve, so this walks every option of every row.
     """
     game.open_settings()
+    game.click(SPARTAN_GROUP)
     expected = {"Continue", "Results", "Retry", "Back to Select Song"}
     for name in SPARTAN_ROWS:
         seen = {game.row(name)["value"].strip()}
@@ -136,8 +141,47 @@ def test_spartan_rows_render_their_options(game):
 def test_spartan_defaults_are_inert(game):
     """The plugin shipped with start: false, so nothing should happen."""
     game.open_settings()
-    for key in ["spartanGood", "spartanOk", "spartanBad"]:
+    for key in ["spartanOk", "spartanBad"]:
         assert game.setting(key) == "continue", f"{key} defaults to something else"
+    assert game.row(SPARTAN_GROUP)["value"].strip() == "Off", \
+        "the group should say nothing in it is set"
+
+
+def visible_rows(game):
+    """Row names that are actually on screen. A folded group's rows are
+    built with the rest and hidden, so they are in the DOM either way."""
+    return game.page.eval_on_selector_all(
+        ".settings-outer > .view > .view-content > .setting-box",
+        """els => els
+            .filter(e => getComputedStyle(e).display !== "none")
+            .map(e => e.querySelector(".setting-name").textContent.trim())""")
+
+
+def test_the_spartan_rows_are_behind_their_group(game):
+    """Three rows for one rarely-used mode is most of the settings
+    screen. It is one row that opens onto the two that matter."""
+    game.open_settings()
+    shut = visible_rows(game)
+    assert SPARTAN_GROUP in shut
+    assert not any(row in shut for row in SPARTAN_ROWS), "the group starts shut"
+    game.click(SPARTAN_GROUP)
+    opened = visible_rows(game)
+    assert all(row in opened for row in SPARTAN_ROWS)
+
+
+def test_the_important_settings_are_near_the_top(game):
+    """Language, then the three people actually change."""
+    game.open_settings()
+    assert visible_rows(game)[:4] == [
+        "Language", "Volume", "Minimal Background", SPARTAN_GROUP]
+
+
+def test_the_group_says_what_is_set_inside_it(game):
+    """So it is readable without opening it."""
+    game.open_settings()
+    game.click(SPARTAN_GROUP)
+    game.click("On a BAD")
+    assert game.row(SPARTAN_GROUP)["value"].strip() != "Off"
 
 
 def test_spartan_bad_ends_the_song_and_counts_the_rest(game):
