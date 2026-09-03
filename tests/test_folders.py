@@ -406,21 +406,28 @@ def test_crowns_are_drawn_at_the_skins_sizes(scored):
     made both of them small: 23px inside the opened box where the skin
     has 56, and 28 above a closed one where the skin has 40.
 
-The sizes look large against the skin's because the skin's art is a
+    The sizes look large against the skin's because the skin's art is a
     39px crown inside a 56px frame, where the fallback path this replaced
-    filled its box edge to edge."""
+    filled its box edge to edge.
+
+    Both are the opened box's art, which carries the difficulty emblem
+    beside the crown. Only the best crown on a song reaches the wheel, so
+    without the emblem it says how well it went but not what on."""
     sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
     assert ("box", 68) in sizes, sizes
-    assert ("small", 40) in sizes, sizes
+    assert ("box", 56) in sizes, sizes
 
 
 def test_crowns_shrink_when_two_players_share_the_row(scored):
-    """In a session each difficulty carries two crowns side by side, and
-    two of the skin's do not fit."""
+    """In a session every crown is drawn twice, side by side, and two of
+    the sizes above do not fit. The pair above a closed box has to stay
+    within a slat, which is 82 wide: two 40s set 16 either side of the
+    middle span 72."""
     scored.page.evaluate("() => { p2.session = true; p2.player = 1 }")
     sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
-    assert all(size <= 28 for _, size in sizes), sizes
-    assert all(variant == "small" for variant, _ in sizes), sizes
+    assert ("small", 24) in sizes, sizes
+    assert ("box", 40) in sizes, sizes
+    assert max(size for _, size in sizes) < 56, sizes
 
 
 def test_search_opens_the_song_it_found(wheel):

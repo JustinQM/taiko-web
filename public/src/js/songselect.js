@@ -3965,23 +3965,23 @@ class SongSelect{
 						continue
 					}
 					if(config.song.courses[this.difficultyId[i]] && score[p][diff] && score[p][diff].crown){
+						// Only the best crown on a song reaches the
+						// wheel, so which difficulty earned it is half
+						// of what it says. The opened box's art carries
+						// the emblem beside the crown, one frame per
+						// difficulty; drawn a little wider than the
+						// plain crown was, so the crown itself still
+						// comes out about the size it did.
+						var offset = players === 2 ? p === 0 ? -16 : 16 : 0
 						this.draw.crown({
 							ctx: ctx,
 							type: score[p][diff].crown,
-							x: (config.x + this.songAsset.width / 2) + (players === 2 ? p === 0 ? -13 : 13 : 0),
+							x: config.x + this.songAsset.width / 2 + offset,
 							y: config.y - 13,
-							variant: "small",
-							size: players === 2 ? 28 : 40,
+							variant: "box",
+							frame: i,
+							size: players === 2 ? 40 : 56,
 							ratio: this.ratio / this.pixelRatio
-						})
-						this.draw.diffIcon({
-							ctx: ctx,
-							diff: i,
-							x: (config.x + this.songAsset.width / 2 + 8) + (players === 2 ? p === 0 ? -13 : 13 : 0),
-							y: config.y - 8,
-							scale: diff === "hard" || diff === "normal" ? 0.45 : 0.5,
-							border: 6.5,
-							small: true
 						})
 						scoreDrawn[p] = true
 					}
