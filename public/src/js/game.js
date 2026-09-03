@@ -608,6 +608,7 @@ class Game{
 				if(this.controller.multiplayer === 1){
 					var obj = this.getGlobalScore()
 					obj.name = account.loggedIn ? account.displayName : null
+					obj.title = account.loggedIn ? account.title || null : null
 					p2.send("gameresults", obj)
 				}
 				this.musicFadeOut++

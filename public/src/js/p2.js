@@ -7,6 +7,7 @@ class P2Connection{
 		this.lastMessages = {}
 		this.otherConnected = false
 		this.name = null
+		this.title = null
 		this.player = 1
 		this.allEvents = new Map()
 		this.addEventListener("message", this.message.bind(this))
@@ -167,6 +168,7 @@ class P2Connection{
 					this.hashLock = false
 				}
 				this.name = null
+				this.title = null
 				this.don = null
 				scoreStorage.clearP2()
 				break
@@ -203,6 +205,7 @@ class P2Connection{
 				break
 			case "name":
 				this.name = response.value ? (response.value.name || "").toString() : ""
+				this.title = response.value ? (response.value.title || "").toString() : ""
 				this.don = response.value ? (response.value.don) : null
 				break
 			case "getcrowns":

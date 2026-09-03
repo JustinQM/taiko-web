@@ -337,6 +337,7 @@ kbd{
 	display: none;
 }
 .account-view .displayname,
+.account-view .account-title,
 .accountpass-form input[type=password],
 .accountdel-form input[type=password],
 .login-form input[type=text],
@@ -357,6 +358,7 @@ kbd{
 	transform: scale(1.4);
 }
 .account-view .displayname-hint,
+.account-view .title-hint,
 .login-form .username-hint,
 .login-form .password-hint,
 .login-form .remember-label{

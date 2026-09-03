@@ -66,6 +66,7 @@ async def connection(ws, path):
         "action": "ready",
         "session": False,
         "name": None,
+        "title": None,
         "don": None
     }
     server_status["users"].append(user)
@@ -101,6 +102,7 @@ async def connection(ws, path):
                         id = value.get("id")
                         diff = value.get("diff")
                         user["name"] = value.get("name")
+                        user["title"] = value.get("title")
                         user["don"] = value.get("don")
                         user["mods"] = value.get("mods")
                         user["soundEffect"] = value.get("soundEffect")
@@ -118,6 +120,7 @@ async def connection(ws, path):
                         else:
                             # Join the other user and start game
                             user["name"] = value.get("name")
+                            user["title"] = value.get("title")
                             user["don"] = value.get("don")
                             user["other_user"] = waiting[id]["user"]
                             waiting_diff = waiting[id]["diff"]
@@ -143,10 +146,12 @@ async def connection(ws, path):
                                     })),
                                     ws.send(msgobj("name", {
                                         "name": user["other_user"]["name"],
+                                        "title": user["other_user"].get("title"),
                                         "don": user["other_user"]["don"]
                                     })),
                                     user["other_user"]["ws"].send(msgobj("name", {
                                         "name": user["name"],
+                                        "title": user.get("title"),
                                         "don": user["don"]
                                     }))
                                 ])
@@ -172,11 +177,13 @@ async def connection(ws, path):
                             user["action"] = "invite"
                             user["session"] = invite
                             user["name"] = value.get("name")
+                            user["title"] = value.get("title")
                             user["don"] = value.get("don")
                             await ws.send(msgobj("invite", invite))
                         elif "id" in value and value["id"] in server_status["invites"]:
                             # Join a session with the other user
                             user["name"] = value.get("name")
+                            user["title"] = value.get("title")
                             user["don"] = value.get("don")
                             user["other_user"] = server_status["invites"][value["id"]]
                             del server_status["invites"][value["id"]]
@@ -192,10 +199,12 @@ async def connection(ws, path):
                                     ws.send(msgobj("invite")),
                                     ws.send(msgobj("name", {
                                         "name": user["other_user"]["name"],
+                                        "title": user["other_user"].get("title"),
                                         "don": user["other_user"]["don"]
                                     })),
                                     user["other_user"]["ws"].send(msgobj("name", {
                                         "name": user["name"],
+                                        "title": user.get("title"),
                                         "don": user["don"]
                                     }))
                                 ])

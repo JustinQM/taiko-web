@@ -193,6 +193,22 @@
 
 		this.refresh()
 	}
+	/*
+	 * The name on the plate and the title above it, for whoever this
+	 * view belongs to. A peer's arrives with the handshake; your own
+	 * comes from the account, and is nothing at all if you have not set
+	 * one, which leaves the plate as it always was.
+	 */
+	nameplateOf(){
+		var defaultName = this.player === 1 ? strings.defaultName : strings.default2PName
+		if(this.multiplayer === 2){
+			return [p2.name || defaultName, p2.title || ""]
+		}
+		return [
+			account.loggedIn ? account.displayName : defaultName,
+			account.loggedIn && account.title ? account.title : ""
+		]
+	}
 	getBadgeNames(showAuto){
 		var badges = this.controller.getModBadges ? this.controller.getModBadges() : []
 		badges = badges.slice()
@@ -455,20 +471,16 @@
 				y: this.player === 2 ? 565 : 160,
 				w: 219,
 				h: 53,
-				id: "1p",
+				id: "1p" + this.nameplateOf().join("\n"),
 			}, ctx => {
-				var defaultName = this.player === 1 ? strings.defaultName : strings.default2PName
-				if(this.multiplayer === 2){
-					var name = p2.name || defaultName
-				}else{
-					var name = account.loggedIn ? account.displayName : defaultName
-				}
+				var who = this.nameplateOf()
 				this.draw.nameplate({
 					ctx: ctx,
 					x: 3,
 					y: 3,
 					scale: 0.8,
-					name: name,
+					name: who[0],
+					rank: who[1],
 					font: this.font,
 					blue: this.player === 2
 				})
@@ -633,19 +645,15 @@
 				y: touchMultiplayer ? (this.player === 2 ? 361 : 119) : (this.player === 2 ? 460 : 20),
 				w: 273,
 				h: 66,
-				id: "1p",
+				id: "1p" + this.nameplateOf().join("\n"),
 			}, ctx => {
-				var defaultName = this.player === 1 ? strings.defaultName : strings.default2PName
-				if(this.multiplayer === 2){
-					var name = p2.name || defaultName
-				}else{
-					var name = account.loggedIn ? account.displayName : defaultName
-				}
+				var who = this.nameplateOf()
 				this.draw.nameplate({
 					ctx: ctx,
 					x: 3,
 					y: 3,
-					name: name,
+					name: who[0],
+					rank: who[1],
 					font: this.font,
 					blue: this.player === 2
 				})

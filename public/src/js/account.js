@@ -44,6 +44,11 @@ class Account{
 		this.displayname.placeholder = strings.account.displayName
 		this.displayname.value = account.displayName
 		this.inputForms.push(this.displayname)
+		this.getElement("title-hint").innerText = strings.account.title
+		this.accountTitle = this.getElement("account-title")
+		this.accountTitle.placeholder = strings.account.title
+		this.accountTitle.value = account.title || ""
+		this.inputForms.push(this.accountTitle)
 		
 		this.redrawRunning = true
 		this.redrawPaused = matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -402,6 +407,7 @@ class Account{
 			account.loggedIn = true
 			account.username = response.username
 			account.displayName = response.display_name
+			account.title = response.title || ""
 			account.don = response.don
 			var loadScores = scores => {
 				scoreStorage.load(scores)
@@ -461,6 +467,7 @@ class Account{
 		account.loggedIn = false
 		delete account.username
 		delete account.displayName
+		delete account.title
 		delete account.don
 		var loadScores = () => {
 			scoreStorage.load()
@@ -508,6 +515,7 @@ class Account{
 				account.loggedIn = false
 				delete account.username
 				delete account.displayName
+				delete account.title
 				delete account.don
 				scoreStorage.load()
 				favorites.load()
@@ -522,6 +530,14 @@ class Account{
 				display_name: newName
 			}).then(response => {
 				account.displayName = response.display_name
+			}))
+		}
+		var newTitle = this.accountTitle.value.trim()
+		if(!noNameChange && newTitle !== (account.title || "")){
+			promises.push(this.request("account/title", {
+				title: newTitle
+			}).then(response => {
+				account.title = response.title
 			}))
 		}
 		var bodyFill = this.customdonBodyFill.value

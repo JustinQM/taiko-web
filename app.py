@@ -608,6 +608,7 @@ def route_api_register():
             'username_lower': username.lower(),
             'password': hashed,
             'display_name': username,
+            'title': '',
             'don': don,
             'user_level': 1,
             'session_id': session_id
@@ -618,7 +619,7 @@ def route_api_register():
     session['session_id'] = session_id
     session['username'] = username
     session.permanent = True
-    return jsonify({'status': 'ok', 'username': username, 'display_name': username, 'don': don})
+    return jsonify({'status': 'ok', 'username': username, 'display_name': username, 'title': '', 'don': don})
 
 
 @app.route('/api/login', methods=['POST'])
@@ -645,7 +646,7 @@ def route_api_login():
     session['username'] = result['username']
     session.permanent = True if data.get('remember') else False
 
-    return jsonify({'status': 'ok', 'username': result['username'], 'display_name': result['display_name'], 'don': don})
+    return jsonify({'status': 'ok', 'username': result['username'], 'display_name': result['display_name'], 'title': result.get('title', ''), 'don': don})
 
 
 @app.route('/api/logout', methods=['POST'])
@@ -673,6 +674,26 @@ def route_api_account_display_name():
     })
 
     return jsonify({'status': 'ok', 'display_name': display_name})
+
+
+@app.route('/api/account/title', methods=['POST'])
+@login_required
+def route_api_account_title():
+    # The line above the name on the nameplate. Unlike the display name
+    # it is allowed to be nothing at all, which is the plate as it was.
+    data = request.get_json()
+    if not schema.validate(data, schema.update_title):
+        return abort(400)
+
+    title = data.get('title', '').strip()
+    if len(title) > 25:
+        return api_error('invalid_title')
+
+    db.users.update_one({'username': session.get('username')}, {
+        '$set': {'title': title}
+    })
+
+    return jsonify({'status': 'ok', 'title': title})
 
 
 @app.route('/api/account/don', methods=['POST'])
@@ -854,7 +875,7 @@ def route_api_scores_get():
 
     user = db.users.find_one({'username': username})
     don = get_db_don(user)
-    return jsonify({'status': 'ok', 'scores': scores, 'username': user['username'], 'display_name': user['display_name'], 'don': don})
+    return jsonify({'status': 'ok', 'scores': scores, 'username': user['username'], 'display_name': user['display_name'], 'title': user.get('title', ''), 'don': don})
 
 
 @app.route('/privacy')

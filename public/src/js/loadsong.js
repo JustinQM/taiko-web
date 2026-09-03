@@ -374,6 +374,7 @@ class LoadSong{
 				id: song.folder,
 				diff: song.difficulty,
 				name: account.loggedIn ? account.displayName : null,
+				title: account.loggedIn ? account.title : null,
 				don: account.loggedIn ? account.don : null,
 				mods: this.cloneModifiers(song.mods),
 				soundEffect: song.soundEffect

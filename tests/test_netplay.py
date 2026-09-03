@@ -301,3 +301,74 @@ def test_search_takes_the_peer_with_you(pair):
     assert a.wheel()["title"] == wanted
     assert b.wheel()["title"] == wanted
     assert a.path() == b.path()
+
+
+def sign_in_with_title(game, name, title):
+    """A registered account carrying a title, ready to play."""
+    ok = game.page.evaluate("""async ([name, title]) => {
+        const csrf = await fetch("/api/csrftoken").then(r => r.json())
+        const post = (url, body) => fetch(url, {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrf.token},
+            body: JSON.stringify(body),
+        }).then(r => r.json())
+        let res = await post("/api/register", {username: name, password: "titletestpass"})
+        if (res.status !== "ok")
+            res = await post("/api/login", {username: name, password: "titletestpass"})
+        if (res.status !== "ok") return res.status
+        return (await post("/api/account/title", {title: title})).status
+    }""", [name, title])
+    assert ok == "ok", f"could not sign in: {ok}"
+    game.load().open_song_select()
+    game.page.wait_for_function("() => account.loggedIn === true", timeout=10000)
+    return game
+
+
+def test_a_title_reaches_the_other_player(browser):
+    """Both sides see the other's title, not just their name.
+
+    The title rides along with the name through the handshake, and the
+    handshake is the only place it is sent -- a plate drawn before it
+    arrives, or a server that drops the field, shows the name alone and
+    looks like nothing is wrong.
+    """
+    context_a = browser.new_context()
+    context_b = browser.new_context()
+    a = sign_in_with_title(open_client(context_a), "titletest1", "Master of Wada")
+    b = sign_in_with_title(open_client(context_b), "titletest2", "Bachi Breaker")
+
+    for client in (a, b):
+        client.page.wait_for_function(
+            "() => p2.socket && p2.socket.readyState === 1", timeout=15000)
+
+    a.page.evaluate("""() => {
+        window.__invite = null
+        p2.addEventListener("message", r => {
+            if(r.type === "invite") window.__invite = r.value
+        })
+        p2.send("invite", {
+            id: null, name: account.displayName, title: account.title, don: account.don
+        })
+    }""")
+    a.page.wait_for_function("() => window.__invite", timeout=15000)
+    invite = a.page.evaluate("() => window.__invite")
+    b.page.evaluate("""id => p2.send("invite", {
+        id: id, name: account.displayName, title: account.title, don: account.don
+    })""", invite)
+
+    for client in (a, b):
+        client.page.wait_for_function("() => p2.session === true", timeout=15000)
+        client.page.wait_for_function("() => p2.title", timeout=15000)
+
+    assert a.page.evaluate("() => p2.title") == "Bachi Breaker"
+    assert b.page.evaluate("() => p2.title") == "Master of Wada"
+
+    context_a.close()
+    context_b.close()
+
+
+def test_a_missing_title_leaves_the_plate_as_it_was(pair):
+    """Nobody has to have one, and no title must not read as one."""
+    a, b = pair
+    assert a.page.evaluate("() => p2.title") == ""
+    assert b.page.evaluate("() => p2.title") == ""

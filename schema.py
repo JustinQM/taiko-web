@@ -40,6 +40,16 @@ update_display_name = {
     }
 }
 
+update_title = {
+    '$schema': 'http://json-schema.org/schema#',
+    'type': 'object',
+    'additionalProperties': False,
+    'required': ['title'],
+    'properties': {
+        'title': {'type': 'string', 'maxLength': 25}
+    }
+}
+
 update_don = {
     '$schema': 'http://json-schema.org/schema#',
     'type': 'object',

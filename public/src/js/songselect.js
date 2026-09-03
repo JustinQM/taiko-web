@@ -3567,10 +3567,14 @@ class SongSelect{
 		
 		if(!p2.session || p2.player === 1){
 			var name = account.loggedIn ? account.displayName : strings.defaultName
-			var rank = account.loggedIn || !gameConfig.accounts || p2.session ? false : strings.notLoggedIn
+			// The line above the name is your title once you have one,
+			// and the standing reminder to log in until then.
+			var rank = account.loggedIn
+				? account.title || false
+				: (!gameConfig.accounts || p2.session ? false : strings.notLoggedIn)
 		}else{
 			var name = p2.name || strings.defaultName
-			var rank = false
+			var rank = p2.title || false
 		}
 		this.nameplateCache.get({
 			ctx: ctx,
@@ -3723,8 +3727,10 @@ class SongSelect{
 		if(p2.session){
 			if(p2.player === 1){
 				var name = p2.name || strings.default2PName
+				var rank = p2.title || false
 			}else{
 				var name = account.loggedIn ? account.displayName : strings.default2PName
+				var rank = account.loggedIn && account.title ? account.title : false
 			}
 			this.nameplateCache.get({
 				ctx: ctx,
@@ -3732,13 +3738,14 @@ class SongSelect{
 				y: frameTop + 640,
 				w: 273,
 				h: 66,
-				id: "2p" + name,
+				id: "2p" + name + "\n" + rank,
 			}, ctx => {
 				this.draw.nameplate({
 					ctx: ctx,
 					x: 3,
 					y: 3,
 					name: name,
+					rank: rank,
 					font: this.font,
 					blue: true
 				})

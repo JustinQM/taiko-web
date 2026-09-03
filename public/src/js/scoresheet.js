@@ -549,8 +549,10 @@ class Scoresheet{
 					var defaultName = p === 0 ? strings.defaultName : strings.default2PName
 					if(p === this.player[0]){
 						var name = account.loggedIn ? account.displayName : defaultName
+						var rank = account.loggedIn && account.title ? account.title : false
 					}else{
 						var name = results.name || defaultName
+						var rank = results.title || false
 					}
 					this.nameplateCache.get({
 						ctx: ctx,
@@ -558,13 +560,14 @@ class Scoresheet{
 						y: 92,
 						w: 273,
 						h: 66,
-						id: p.toString() + "p" + name,
+						id: p.toString() + "p" + name + "\n" + rank,
 					}, ctx => {
 						this.draw.nameplate({
 							ctx: ctx,
 							x: 3,
 							y: 3,
 							name: name,
+							rank: rank,
 							font: this.font,
 							blue: p === 1
 						})

@@ -1470,6 +1470,10 @@ var translations = {
 			ja: null,
 			en: "Displayed Name",
 		},
+		title: {
+			ja: null,
+			en: "Title"
+		},
 		customdon: {
 			bodyFill: {
 				ja: null,
@@ -1551,6 +1555,10 @@ var translations = {
 			ja: null,
 			en: "Cannot use this name, please check that your new name is at most 25 characters long",
 			tw: "無法使用此名稱。名稱最多不能超過 25 個字。"
+		},
+		invalid_title: {
+			ja: null,
+			en: "Cannot use this title, please check that it is at most 25 characters long"
 		},
 		invalid_don: {
 			ja: null,

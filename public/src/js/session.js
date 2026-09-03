@@ -40,6 +40,7 @@ class Session{
 		p2.send("invite", {
 			id: null,
 			name: account.loggedIn ? account.displayName : null,
+			title: account.loggedIn ? account.title : null,
 			don: account.loggedIn ? account.don : null
 		})
 		pageEvents.send("session")

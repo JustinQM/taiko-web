@@ -253,6 +253,7 @@ class Loader{
 						account.loggedIn = true
 						account.username = response.username
 						account.displayName = response.display_name
+						account.title = response.title || ""
 						account.don = response.don
 						scoreStorage.load(response.scores)
 						pageEvents.send("login", account.username)
@@ -341,6 +342,7 @@ class Loader{
 						p2.send("invite", {
 							id: location.hash.slice(1).toLowerCase(),
 							name: account.loggedIn ? account.displayName : null,
+							title: account.loggedIn ? account.title : null,
 							don: account.loggedIn ? account.don : null
 						})
 						setTimeout(() => {
