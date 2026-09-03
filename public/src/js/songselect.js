@@ -3044,16 +3044,17 @@ class SongSelect{
 										? y + (players === 2 ? 75 : 88)
 										: y + (players === 2 ? 30 : 55),
 									// The skin's own art, with the frame
-									// that matches the difficulty. 56 is
-									// the skin's size and fits the wider
-									// spacing of the difficulty screen; the
-									// opened box packs them 60 apart, where
-									// 56 leaves them touching. Two of them
-									// go side by side in a session, which
-									// needs the small ones.
+									// that matches the difficulty. Sized
+									// so the crown itself comes out the
+									// size these were tuned to: the art
+									// is a 39px crown in a 56px frame,
+									// where the fallback path filled its
+									// box edge to edge. Two crowns go side
+									// by side in a session, which needs
+									// the small ones.
 									variant: players === 2 ? "small" : "box",
 									frame: currentUra ? 4 : i,
-									size: players === 2 ? 24 : (songSel ? 48 : 56),
+									size: players === 2 ? 24 : (songSel ? 68 : 80),
 									ratio: this.ratio / this.pixelRatio
 								})
 							}

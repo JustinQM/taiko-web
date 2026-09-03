@@ -1486,9 +1486,58 @@
 		// Drawn at its own aspect, filling the width of the box the
 		// caller's scale is measured against, so nothing is flattened.
 		var height = 94 * img.naturalHeight / sw
-		ctx.drawImage(img, frame * sw, 0, sw, img.naturalHeight,
+		var source = img
+		var sx = frame * sw
+		if(config.type === "rainbow"){
+			var turned = this.rainbowCrown(img, sx, sw, img.naturalHeight,
+				prefix + config.type + "-" + frame)
+			if(turned){
+				source = turned
+				sx = 0
+			}
+		}
+		ctx.drawImage(source, sx, 0, sw, img.naturalHeight,
 			0, 39 - height / 2, 94, height)
 		return true
+	}
+	
+	/*
+	 * The rainbow crown, with its rainbow moving.
+	 *
+	 * A donderful is hard enough to earn that its crown should not sit
+	 * there as a flat picture. The art is already a rainbow, so turning
+	 * its hue is enough to make it flow -- no recolouring, and it stays
+	 * the crown the skin drew.
+	 *
+	 * Each step is rendered once and kept. Doing it live would put a
+	 * canvas filter in the middle of a frame that draws a dozen crowns,
+	 * and the whole loop is only twenty small images.
+	 */
+	rainbowCrown(img, sx, sw, sh, key){
+		if(!this.crownTurns){
+			this.crownTurns = {}
+		}
+		var steps = 20
+		var now = typeof performance !== "undefined" && performance.now
+			? performance.now() : Date.now()
+		var step = Math.floor(now / (2000 / steps)) % steps
+		var id = key + "-" + step
+		if(id in this.crownTurns){
+			return this.crownTurns[id]
+		}
+		var canvas = document.createElement("canvas")
+		canvas.width = sw
+		canvas.height = sh
+		var scratch = canvas.getContext("2d")
+		if(!("filter" in scratch)){
+			// Without a filter it stays the picture it always was.
+			this.crownTurns[id] = null
+			return null
+		}
+		scratch.filter = "hue-rotate(" + Math.round(step * 360 / steps) + "deg)"
+		scratch.drawImage(img, sx, 0, sw, sh, 0, 0, sw, sh)
+		this.crownTurns[id] = canvas
+		return canvas
 	}
 	
 	getGaugeRainbowImage(config){

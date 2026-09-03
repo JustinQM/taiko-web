@@ -949,6 +949,8 @@ class Scoresheet{
 			}
 		}
 		
+		this.drawResultsConfetti(ctx, ms, winW, winH, ratio)
+		
 		if(this.state.screen === "fadeOut"){
 			if(this.state.hasPointer === 1){
 				this.state.hasPointer = 2
@@ -967,6 +969,67 @@ class Scoresheet{
 			}
 		}
 		
+		ctx.restore()
+	}
+	
+	/*
+	 * Confetti over the results, from the moment the crown lands.
+	 *
+	 * Only for a clear, and heavier the better the clear was -- a
+	 * donderful should not arrive to the same amount of paper as a
+	 * scrape past the line. The pieces are the ones the ending animation
+	 * throws, and the scatter is worked out from the index rather than
+	 * drawn at random so both players in a session see the same thing.
+	 */
+	drawResultsConfetti(ctx, ms, winW, winH, ratio){
+		var results = this.results[this.player[0]]
+		var rules = this.controller.game.rules
+		if(!results || !rules.clearReached(results.gauge)){
+			return
+		}
+		var img = assets.image["yatai_ending_confetti"]
+		if(!img || !img.complete || img.naturalWidth < 2){
+			return
+		}
+		// Started from the moment the crown lands and measured from
+		// there, rather than from a screen clock that resets underneath
+		// it when the scores finish counting up.
+		if(!this.confettiMS){
+			var elapsed = ms - this.state.screenMS - this.state.startDelay
+			if(this.state.screen !== "fadeIn" || elapsed >= 1650){
+				this.confettiMS = ms
+			}
+			return
+		}
+		var since = ms - this.confettiMS
+		var bad = Number(results.bad) || 0
+		var ok = Number(results.ok) || 0
+		var pieces = bad === 0 ? (ok === 0 ? 80 : 52) : 28
+		var w = img.naturalWidth / 5
+		var h = img.naturalHeight
+		var width = winW / ratio
+		var height = winH / ratio
+		
+		ctx.save()
+		for(var i = 0; i < pieces; i++){
+			// Deterministic scatter: index in, position out.
+			var acrossSeed = (i * 2654435761) % 1009 / 1009
+			var speedSeed = (i * 40503) % 997 / 997
+			var start = ((i * 7919) % 1013 / 1013) * 2600
+			var t = since - start
+			if(t < 0){
+				continue
+			}
+			var fall = (t / (5200 + speedSeed * 2600)) % 1
+			var x = acrossSeed * width
+			var y = -h + fall * (height + h * 2)
+			ctx.save()
+			ctx.globalAlpha *= 0.85
+			ctx.translate(x + Math.sin(t / 420 + i) * 26, y)
+			ctx.rotate(t / 520 + i)
+			ctx.drawImage(img, Math.floor(t / 110) % 5 * w, 0, w, h, -w / 2, -h / 2, w, h)
+			ctx.restore()
+		}
 		ctx.restore()
 	}
 	

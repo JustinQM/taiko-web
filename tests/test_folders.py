@@ -406,11 +406,11 @@ def test_crowns_are_drawn_at_the_skins_sizes(scored):
     made both of them small: 23px inside the opened box where the skin
     has 56, and 28 above a closed one where the skin has 40.
 
-    48 rather than 56 in the opened box: the skin packs them 60 apart on
-    the difficulty screen too, but ours sit 60 apart in the box itself,
-    where 56 leaves the outlines touching."""
+The sizes look large against the skin's because the skin's art is a
+    39px crown inside a 56px frame, where the fallback path this replaced
+    filled its box edge to edge."""
     sizes = {(c["variant"], c["size"]) for c in scored.page.evaluate(CROWN_SPY)}
-    assert ("box", 48) in sizes, sizes
+    assert ("box", 68) in sizes, sizes
     assert ("small", 40) in sizes, sizes
 
 
