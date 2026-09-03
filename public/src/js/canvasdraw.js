@@ -1335,13 +1335,28 @@
 		ctx.restore()
 	}
 	
+	/*
+	 * A crown, at a size rather than at a fraction of the fallback's box.
+	 *
+	 * The skin has three sets and they are three different pictures: 152
+	 * for the results screen, 56 with a frame per difficulty for the
+	 * opened song box, 40 for the closed one. They were all being drawn
+	 * into the 94x78 box the vector path occupies and then scaled down
+	 * from it, which made every one of them small and the square ones
+	 * flat as well. `size` is the width the crown should come out,
+	 * whichever of the two paths draws it.
+	 */
 	crown(config){
 		var ctx = config.ctx
 		ctx.save()
 		
+		var scale = config.scale || 1
+		if(config.size){
+			scale *= config.size / 94
+		}
 		ctx.translate(config.x, config.y)
-		if(config.scale){
-			ctx.scale(config.scale, config.scale)
+		if(scale !== 1){
+			ctx.scale(scale, scale)
 		}
 		ctx.translate(-47, -39)
 		
@@ -1445,9 +1460,11 @@
 	 * so which is used follows how big it is being drawn.
 	 */
 	drawCrownImage(ctx, config){
-		var small = (config.scale || 1) < 0.45
-		var name = "yatai_crown_" + (small ? "small_" : "") + config.type
-		var img = assets.image[name]
+		// Three sets, and the opened song box has five frames of its own,
+		// one per difficulty, outlined to match.
+		var variant = config.variant || ((config.scale || 1) < 0.45 ? "small" : "")
+		var prefix = variant ? variant + "_" : ""
+		var img = assets.image["yatai_crown_" + prefix + config.type]
 		// A 1x1 placeholder is the public build having no art; fall back
 		// rather than stretching a single pixel over the crown.
 		if(!img || !img.complete || img.naturalWidth < 2){
@@ -1456,17 +1473,14 @@
 		if(config.shine){
 			ctx.globalAlpha *= 1 - config.shine
 		}
-		if(config.size){
-			// The skin's own size, for the one place that wants the crown
-			// at the size the skin draws it rather than at whatever the
-			// fallback path's box happens to be. Squeezing a square 152px
-			// crown into a 94x78 box both shrinks it and flattens it.
-			var height = config.size * img.naturalHeight / img.naturalWidth
-			ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight,
-				47 - config.size / 2, 39 - height / 2, config.size, height)
-			return true
-		}
-		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, 94, 78)
+		var frames = variant === "box" ? 5 : 1
+		var frame = Math.max(0, Math.min(frames - 1, config.frame || 0))
+		var sw = img.naturalWidth / frames
+		// Drawn at its own aspect, filling the width of the box the
+		// caller's scale is measured against, so nothing is flattened.
+		var height = 94 * img.naturalHeight / sw
+		ctx.drawImage(img, frame * sw, 0, sw, img.naturalHeight,
+			0, 39 - height / 2, 94, height)
 		return true
 	}
 	
