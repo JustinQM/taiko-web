@@ -523,6 +523,9 @@ def test_clicking_favourite_does_not_take_the_screen_away(wheel):
     wheel.page.evaluate("() => __ss.toSelectDifficulty()")
     wheel.page.wait_for_function(
         "() => __ss.state.screen === 'difficulty'", timeout=8000)
+    # And until it is taking input again: the screen is locked until the
+    # next frame, and diffSelMouse answers null to everything while it is.
+    wheel.settle()
 
     result = wheel.page.evaluate("""() => {
         const index = __ss.diffOptions.findIndex(o => o.iconName === "favorite")
