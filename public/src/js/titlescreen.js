@@ -34,7 +34,6 @@ class Titlescreen{
 				this.onPressed(true)
 			})
 			
-			assets.sounds["v_title"].play()
 			this.keyboard = new Keyboard({
 				confirm: ["enter", "space", "don_l", "don_r"]
 			}, this.onPressed.bind(this))
@@ -127,7 +126,6 @@ class Titlescreen{
 		this.keyboard.clean()
 		this.gamepad.clean()
 		this.logo.clean()
-		assets.sounds["v_title"].stop()
 		pageEvents.remove(this.titleScreen, ["mousedown", "touchstart"])
 		delete this.titleScreen
 		delete this.proceed

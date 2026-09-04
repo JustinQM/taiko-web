@@ -199,14 +199,12 @@ var assets = {
 		"se_pause.ogg",
 		"se_calibration.ogg",
 		
-		"v_results.ogg",
 		"v_sanka.ogg",
 		"v_songsel.ogg",
 		"v_diffsort.ogg",
 		"v_diffsort_level.ogg",
 		"v_diffsort_confirm.ogg",
-		"v_start.ogg",
-		"v_title.ogg"
+		"v_start.ogg"
 	],
 	"audioSfxLR": [
 		"neiro_1_don.ogg",
@@ -285,10 +283,18 @@ var assets = {
 		
 		"v_fullcombo.ogg",
 		"v_donderful.ogg",
+		"v_donderful2.ogg",
 		"v_blank.ogg",
-		"v_renda.ogg",
 		"v_results_fullcombo.ogg",
-		"v_results_fullcombo2.ogg"
+		"v_results_fullcombo2.ogg",
+		"v_results_clear.ogg",
+		"v_results_clear2.ogg",
+		"v_results_fail.ogg",
+		"v_results_fail2.ogg",
+		"v_results_maxfail.ogg",
+		"v_results_maxfail2.ogg",
+		"v_results_highscore.ogg",
+		"v_results_highscore2.ogg"
 	],
 	"audioSfxLoud": [
 		"v_diffsel.ogg"

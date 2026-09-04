@@ -74,7 +74,6 @@ class Scoresheet{
 		this.redrawBind = this.redraw.bind(this)
 		this.redraw()
 		
-		assets.sounds["v_results"].play()
 		assets.sounds["bgm_result"].playLoop(3, false, 0, 0.847, 17.689)
 		
 		this.session = p2.session
@@ -755,6 +754,17 @@ class Scoresheet{
 			ctx.restore()
 		}
 		
+		// A personal best, said after whatever the outcome was rather than
+		// over the top of it. Only for the player at this machine: it is
+		// their own previous score it is measured against, and the peer's
+		// is not ours to know.
+		if(this.state.screen === "fadeIn" && elapsed >= 3000
+		&& this.state.newHighScore && !this.state.highScorePlayed){
+			this.state.highScorePlayed = true
+			var me = this.player[0]
+			this.playSound("v_results_highscore" + (me === 1 ? "2" : ""), me)
+		}
+		
 		if(elapsed >= 1200){
 			ctx.save()
 			ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -768,6 +778,16 @@ class Scoresheet{
 				var crownType = null
 				if(this.rules[p].clearReached(results.gauge)){
 					crownType = results.bad === "0" ? (results.ok === "0" ? "rainbow" : "gold") : "silver"
+				}
+				// A fail has no crown to hang a voice off, so it is called
+				// here instead. The skin splits it the same way, on whether
+				// the gauge got half way: not making it at all and nearly
+				// making it do not deserve the same line.
+				if(crownType === null && this.state.screen === "fadeIn"
+				&& !this.state["crownVoicePlayed" + p]){
+					this.state["crownVoicePlayed" + p] = true
+					var failed = this.resultVoice(null, this.rules[p].gaugePercent(results.gauge))
+					this.playSound(failed + (p === 1 ? "2" : ""), p)
 				}
 				if(crownType !== null){
 					noCrownResultWait = 0;
@@ -792,11 +812,10 @@ class Scoresheet{
 								shine = 2 - shine
 							}
 						}
-						if(this.state.screen === "fadeIn" && elapsed >= 1200 && !this.state["fullcomboPlayed" + p]){
-							this.state["fullcomboPlayed" + p] = true
-							if(crownType === "gold" || crownType === "rainbow"){ // TODO: sound effect of donder full combo
-								this.playSound("v_results_fullcombo" + (p === 1 ? "2" : ""), p)
-							}
+						if(this.state.screen === "fadeIn" && elapsed >= 1200 && !this.state["crownVoicePlayed" + p]){
+							this.state["crownVoicePlayed" + p] = true
+							var voice = this.resultVoice(crownType, 1)
+							this.playSound(voice + (p === 1 ? "2" : ""), p)
 						}
 						if(this.state.screen === "fadeIn" && elapsed >= 1650 && !this.state["crownPlayed" + p]){
 							this.state["crownPlayed" + p] = true
@@ -1087,6 +1106,30 @@ class Scoresheet{
 		return Date.now()
 	}
 	
+	/*
+	 * Which voice calls the result out.
+	 *
+	 * One line per outcome, which is the point of it: a donderful used to
+	 * share the full combo's and so sounded like one. The fail is split
+	 * on whether the gauge got half way, as the skin's own script splits
+	 * it -- not making it at all and nearly making it are different
+	 * disappointments.
+	 *
+	 * crownType is null when the song was failed.
+	 */
+	resultVoice(crownType, gaugePercent){
+		if(crownType === "rainbow"){
+			return "v_donderful"
+		}
+		if(crownType === "gold"){
+			return "v_results_fullcombo"
+		}
+		if(crownType){
+			return "v_results_clear"
+		}
+		return gaugePercent < 0.5 ? "v_results_maxfail" : "v_results_fail"
+	}
+	
 	saveScore(){
 		if(this.controller.saveScore){
 			if(this.resultsObj.points < 0){
@@ -1107,6 +1150,11 @@ class Scoresheet{
 				}
 			}
 			
+			// Whether this beat what was there before, noted while the old
+			// score is still readable: the write below replaces it, and by
+			// the time the results screen gets round to saying so there
+			// would be nothing left to compare against.
+			this.state.newHighScore = !!oldScore && this.resultsObj.points > oldScore.points
 			var clearReached = this.controller.game.rules.clearReached(this.resultsObj.gauge)
 			var crown = ""
 			if(clearReached){

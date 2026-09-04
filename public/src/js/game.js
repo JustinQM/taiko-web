@@ -97,15 +97,6 @@ class Game{
 				var drumrollNotes = type === "balloon" || type === "drumroll" || type === "daiDrumroll"
 				var endTime = circle.endTime + (drumrollNotes ? 0 : this.rules.bad) + this.controller.audioLatency
 				
-				if(ms >= circle.ms + this.controller.audioLatency){
-					if(drumrollNotes && !circle.rendaPlayed && ms < endTime + this.controller.audioLatency){
-						circle.rendaPlayed = true
-						if(this.rules.difficulty === "easy"){
-							assets.sounds["v_renda" + this.controller.snd].stop()
-							this.controller.playSound("v_renda")
-						}
-					}
-				}
 				if(circle.daiFailed && (ms >= circle.daiFailed.ms + this.rules.daiLeniency || ms > endTime)){
 					this.checkScore(circle, circle.daiFailed.check)
 				}else if(ms > endTime){

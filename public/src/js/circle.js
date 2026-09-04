@@ -20,7 +20,6 @@ class Circle{
 		this.timesHit = 0
 		this.timesKa = 0
 		this.requiredHits = config.requiredHits || 0
-		this.rendaPlayed = false
 		this.gogoTime = config.gogoTime || false
 		this.gogoChecked = false
 		this.beatMS = config.beatMS
