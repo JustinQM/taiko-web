@@ -111,129 +111,105 @@ def test_song_select_speed_persists_and_is_applied(game):
     assert game.errors == []
 
 
-# One row that opens onto the two that matter. There is no GOOD any
-# more: stopping the song because a note was played correctly is not a
-# mode anyone wants.
-SPARTAN_GROUP = "Spartan Mode"
-SPARTAN_ROWS = ["On an OK", "On a BAD"]
+# One row now, and its options name the run being asked for rather than
+# what to do about each judgement. There is no GOOD entry and never was:
+# stopping the song because a note was played correctly is not a mode
+# anyone wants.
+SPARTAN = "Spartan Mode"
 
 
-def test_spartan_rows_render_their_options(game):
+def test_spartan_renders_its_options(game):
     """The plugin's own settings UI was broken exactly here.
 
-    getValue labels a select from strings.settings[name][value]. For a
-    plugin setting `name` is the array index it arrived at, so the lookup
-    was undefined and the row threw. As built-in settings the labels
-    resolve, so this walks every option of every row.
+    getValue labels a select from strings.settings[name][value], and a
+    row whose options have no strings shows blank or throws.
     """
     game.open_settings()
-    game.click(SPARTAN_GROUP)
-    expected = {"Continue", "Results", "Retry", "Back to Select Song"}
-    for name in SPARTAN_ROWS:
-        seen = {game.row(name)["value"].strip()}
-        for _ in range(3):
-            game.click(name)
-            seen.add(game.row(name)["value"].strip())
-        assert seen == expected, f"{name} cycled through {seen}"
+    expected = {"Off", "Full Combo", "Donderful Combo"}
+    seen = {game.row(SPARTAN)["value"].strip()}
+    for _ in range(3):
+        game.click(SPARTAN)
+        seen.add(game.row(SPARTAN)["value"].strip())
+    assert seen == expected, f"cycled through {seen}"
     assert game.errors == []
 
 
-def test_spartan_defaults_are_inert(game):
+def test_spartan_is_off_by_default(game):
     """The plugin shipped with start: false, so nothing should happen."""
     game.open_settings()
-    for key in ["spartanOk", "spartanBad"]:
-        assert game.setting(key) == "continue", f"{key} defaults to something else"
-    assert game.row(SPARTAN_GROUP)["value"].strip() == "Off", \
-        "the group should say nothing in it is set"
+    assert game.setting("spartanMode") == "off"
+    assert game.row(SPARTAN)["value"].strip() == "Off"
 
 
-def visible_rows(game):
-    """Row names that are actually on screen. A folded group's rows are
-    built with the rest and hidden, so they are in the DOM either way."""
-    return game.page.eval_on_selector_all(
+def test_spartan_has_no_rows_hidden_behind_it(game):
+    """It was a group opening onto two more rows. One row, no submenu."""
+    game.open_settings()
+    names = game.page.eval_on_selector_all(
         ".settings-outer > .view > .view-content > .setting-box",
-        """els => els
-            .filter(e => getComputedStyle(e).display !== "none")
-            .map(e => e.querySelector(".setting-name").textContent.trim())""")
+        """els => els.map(e => e.querySelector(".setting-name").textContent.trim())""")
+    assert SPARTAN in names
+    assert "On an OK" not in names and "On a BAD" not in names
 
 
-def test_the_spartan_rows_are_behind_their_group(game):
-    """Three rows for one rarely-used mode is most of the settings
-    screen. It is one row that opens onto the two that matter."""
-    game.open_settings()
-    shut = visible_rows(game)
-    assert SPARTAN_GROUP in shut
-    assert not any(row in shut for row in SPARTAN_ROWS), "the group starts shut"
-    game.click(SPARTAN_GROUP)
-    opened = visible_rows(game)
-    assert all(row in opened for row in SPARTAN_ROWS)
-
-
-def test_the_important_settings_are_near_the_top(game):
-    """Language, then the three people actually change."""
-    game.open_settings()
-    assert visible_rows(game)[:4] == [
-        "Language", "Volume", "Minimal Background", SPARTAN_GROUP]
-
-
-def test_the_group_says_what_is_set_inside_it(game):
-    """So it is readable without opening it."""
-    game.open_settings()
-    game.click(SPARTAN_GROUP)
-    game.click("On a BAD")
-    assert game.row(SPARTAN_GROUP)["value"].strip() != "Off"
-
-
-def test_spartan_bad_ends_the_song_and_counts_the_rest(game):
-    """Drive checkSpartanMode directly; playing a song needs real audio.
-
-    Three unplayed notes remain, so ending here has to add three bads and
-    trip the fade-out, or the results screen disagrees with the note count.
-    """
-    game.open_settings()
-    result = game.page.evaluate("""() => {
-        settings.setItem('spartanBad', 'results')
+def spartan_fires(game, mode, score):
+    """Whether a judgement ends the run. Driven directly: playing a song
+    needs real audio, and the whole point is what happens mid-song."""
+    return game.page.evaluate("""([mode, score]) => {
+        settings.setItem('spartanMode', mode)
+        let restarted = false
         const fake = {
             multiplayer: 0,
-            controller: {autoPlayEnabled: false},
-            globalScore: {bad: 0},
-            fadeOutStarted: null,
-            songData: {circles: [
-                {type: 'don', isPlayed: true},
-                {type: 'don', isPlayed: false},
-                {type: 'ka',  isPlayed: false},
-                {type: 'daiKa', isPlayed: false},
-                {type: 'balloon', isPlayed: false},
-                {type: 'don', isPlayed: false, branch: {active: false}}
-            ]}
+            controller: {autoPlayEnabled: false, restartSong: () => { restarted = true }}
         }
-        Game.prototype.checkSpartanMode.call(fake, -1)
-        return {bad: fake.globalScore.bad, fadeOut: fake.fadeOutStarted}
-    }""")
-    assert result["bad"] == 3, f"counted {result['bad']} remaining notes, expected 3"
-    assert result["fadeOut"] == float("-inf"), "song was not ended"
+        Game.prototype.checkSpartanMode.call(fake, score)
+        return new Promise(r => setTimeout(() => r(restarted), 30))
+    }""", [mode, score])
+
+
+# 450 is a GOOD, 230 an OK, 0 a BAD, -1 a note gone by unplayed.
+def test_off_never_fires(game):
+    game.open_settings()
+    for score in (450, 230, 0, -1):
+        assert spartan_fires(game, "off", score) is False, score
+
+
+def test_a_full_combo_run_ends_on_a_bad_but_not_an_ok(game):
+    game.open_settings()
+    assert spartan_fires(game, "fc", 0) is True, "a bad did not end it"
+    assert spartan_fires(game, "fc", -1) is True, "a missed note did not end it"
+    assert spartan_fires(game, "fc", 230) is False, "an ok ended a full combo run"
+    assert spartan_fires(game, "fc", 450) is False, "a good ended it"
+
+
+def test_a_donderful_run_ends_on_an_ok_too(game):
+    game.open_settings()
+    assert spartan_fires(game, "dc", 230) is True, "an ok did not end it"
+    assert spartan_fires(game, "dc", 0) is True
+    assert spartan_fires(game, "dc", -1) is True
+    assert spartan_fires(game, "dc", 450) is False, "a good ended it"
 
 
 def test_spartan_is_inert_in_multiplayer_and_autoplay(game):
     game.open_settings()
     untouched = game.page.evaluate("""() => {
-        settings.setItem('spartanBad', 'results')
-        const make = over => Object.assign({
-            multiplayer: 0,
-            controller: {autoPlayEnabled: false},
-            globalScore: {bad: 0},
-            fadeOutStarted: null,
-            songData: {circles: [{type: 'don', isPlayed: false}]}
-        }, over)
-        const results = []
-        for(const fake of [make({multiplayer: 1}),
-                           make({controller: {autoPlayEnabled: true}})]){
-            Game.prototype.checkSpartanMode.call(fake, -1)
-            results.push(fake.globalScore.bad === 0 && fake.fadeOutStarted === null)
+        settings.setItem('spartanMode', 'dc')
+        const make = over => {
+            const fake = Object.assign({
+                multiplayer: 0,
+                controller: {autoPlayEnabled: false, restartSong: () => { fake.hit = true }}
+            }, over)
+            fake.hit = false
+            return fake
         }
-        return results
+        const a = make({multiplayer: 1})
+        const b = make({controller: {autoPlayEnabled: true, restartSong: () => {}}})
+        Game.prototype.checkSpartanMode.call(a, -1)
+        Game.prototype.checkSpartanMode.call(b, -1)
+        return new Promise(r => setTimeout(() => r([!a.hit, !b.hit]), 30))
     }""")
     assert untouched == [True, True], "spartan mode fired in multiplayer or autoplay"
+
+
 
 
 def test_the_nintendo_pad_layout_is_type_b_the_other_way_round(game):

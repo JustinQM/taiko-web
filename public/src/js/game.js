@@ -232,45 +232,37 @@ class Game{
 	// configured separately for good, ok and bad. Used for full-combo and
 	// donderful-combo practice.
 	//
-	// Absorbed from the spartan-mode plugin. All three settings default to
-	// "continue", so this is inert unless configured -- the plugin was
-	// listed with start: false, so that is the behavior being preserved.
+	/*
+	 * Absorbed from the spartan-mode plugin: start the song again the
+	 * moment the run you asked for is no longer possible.
+	 *
+	 * The setting names the run rather than the reaction -- a full combo
+	 * is over on a bad or a miss, a donderful on an ok as well -- and the
+	 * reaction is always to start over. The plugin also offered ending
+	 * the song or dropping out to song select, which are ways of not
+	 * playing it.
+	 *
+	 * A GOOD never appears here: stopping because a note was played
+	 * correctly is not a mode anyone wants.
+	 */
 	checkSpartanMode(score){
 		if(this.multiplayer || this.controller.autoPlayEnabled){
 			return
 		}
-		// No entry for a GOOD: stopping the song because a note was
-		// played correctly is not a mode anyone wants.
-		var setting = {
-			230: "spartanOk",
-			0: "spartanBad",
-			"-1": "spartanBad"
-		}[score]
-		if(!setting){
+		var mode = settings.getItem("spartanMode")
+		if(mode !== "fc" && mode !== "dc"){
 			return
 		}
-		switch(settings.getItem(setting)){
-			case "results":
-				// The song stops here, so everything still unplayed has to
-				// be counted as a bad or the results screen disagrees with
-				// the note count.
-				var remainingNotes = this.songData.circles.filter(circle => {
-					var type = circle.type
-					return (type === "don" || type === "ka" || type === "daiDon" || type === "daiKa") && (!circle.branch || circle.branch.active) && !circle.isPlayed
-				}).length
-				this.globalScore.bad += remainingNotes
-				this.fadeOutStarted = -Infinity
-				break
-			case "retry":
-				// Not while stepping through measures in the debug view,
-				// which would restart out from under the person using it.
-				if(!debugObj.debug || !debugObj.debug.measureNum){
-					setTimeout(() => this.controller.restartSong())
-				}
-				break
-			case "back_to_select_song":
-				setTimeout(() => this.controller.songSelection())
-				break
+		// 0 is a bad and -1 a note gone by unplayed; 230 is an ok, which
+		// only a donderful minds.
+		var over = score === 0 || score === -1 || (mode === "dc" && score === 230)
+		if(!over){
+			return
+		}
+		// Not while stepping through measures in the debug view, which
+		// would restart out from under the person using it.
+		if(!debugObj.debug || !debugObj.debug.measureNum){
+			setTimeout(() => this.controller.restartSong())
 		}
 	}
 	skipNote(circle){

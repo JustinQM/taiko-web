@@ -1901,7 +1901,7 @@ class SongSelect{
 	entryHandlesSessionItself(song){
 		return song.action === "random" || song.action === "search"
 			|| song.action === "folder" || song.action === "back"
-			|| song.action === "diffSort"
+			|| song.action === "collection" || song.action === "diffSort"
 	}
 	
 	// Every message that carries a selection carries the folder it is an
@@ -2217,7 +2217,7 @@ class SongSelect{
 					this.playSound("v_diffsel", 0.3)
 				}
 				pageEvents.send("song-select-difficulty", currentSong)
-			}else if(currentSong.action === "folder"){
+			}else if(currentSong.action === "folder" || currentSong.action === "collection"){
 				this.toFolder(fromP2)
 			}else if(currentSong.action === "diffSort"){
 				// It holds nothing until it has been asked what to hold.

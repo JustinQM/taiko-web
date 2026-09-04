@@ -1162,117 +1162,27 @@ var translations = {
 				cn: "斯巴达模式",
 				tw: "斯巴達模式",
 				ko: "스파르타 모드"
-			}
-		},
-		spartanGood: {
-			name: {
-				ja: "スパルタモード: 良",
-				en: "Spartan Mode: GOOD",
-				cn: "斯巴达模式: 良",
-				tw: "斯巴達模式: 良",
-				ko: "스파르타 모드: 얼쑤"
 			},
-			continue: {
-				ja: "演奏をつづける",
-				en: "Continue",
-				cn: "继续演奏",
-				tw: "繼續演奏",
-				ko: "연주 계속하기"
+			off: {
+				ja: "オフ",
+				en: "Off",
+				cn: "关闭",
+				tw: "關閉",
+				ko: "끄기"
 			},
-			results: {
-				ja: "成績発表",
-				en: "Results",
-				cn: "发表成绩",
-				tw: "發表成績",
-				ko: "성적 발표"
+			fc: {
+				ja: "フルコンボ",
+				en: "Full Combo",
+				cn: "全连",
+				tw: "全連",
+				ko: "풀콤보"
 			},
-			retry: {
-				ja: "はじめからやりなおす",
-				en: "Retry",
-				cn: "从头开始",
-				tw: "從頭開始",
-				ko: "처음부터 다시"
-			},
-			back_to_select_song: {
-				ja: "「曲をえらぶ」にもどる",
-				en: "Back to Select Song",
-				cn: "返回「选择乐曲」",
-				tw: "返回「選擇樂曲」",
-				ko: "「곡 선택」으로"
-			}
-		},
-		spartanOk: {
-			name: {
-				ja: "可のとき",
-				en: "On an OK",
-				cn: "可的时候",
-				tw: "可的時候",
-				ko: "좋다일 때"
-			},
-			continue: {
-				ja: "演奏をつづける",
-				en: "Continue",
-				cn: "继续演奏",
-				tw: "繼續演奏",
-				ko: "연주 계속하기"
-			},
-			results: {
-				ja: "成績発表",
-				en: "Results",
-				cn: "发表成绩",
-				tw: "發表成績",
-				ko: "성적 발표"
-			},
-			retry: {
-				ja: "はじめからやりなおす",
-				en: "Retry",
-				cn: "从头开始",
-				tw: "從頭開始",
-				ko: "처음부터 다시"
-			},
-			back_to_select_song: {
-				ja: "「曲をえらぶ」にもどる",
-				en: "Back to Select Song",
-				cn: "返回「选择乐曲」",
-				tw: "返回「選擇樂曲」",
-				ko: "「곡 선택」으로"
-			}
-		},
-		spartanBad: {
-			name: {
-				ja: "不可のとき",
-				en: "On a BAD",
-				cn: "不可的时候",
-				tw: "不可的時候",
-				ko: "어이쿠일 때"
-			},
-			continue: {
-				ja: "演奏をつづける",
-				en: "Continue",
-				cn: "继续演奏",
-				tw: "繼續演奏",
-				ko: "연주 계속하기"
-			},
-			results: {
-				ja: "成績発表",
-				en: "Results",
-				cn: "发表成绩",
-				tw: "發表成績",
-				ko: "성적 발표"
-			},
-			retry: {
-				ja: "はじめからやりなおす",
-				en: "Retry",
-				cn: "从头开始",
-				tw: "從頭開始",
-				ko: "처음부터 다시"
-			},
-			back_to_select_song: {
-				ja: "「曲をえらぶ」にもどる",
-				en: "Back to Select Song",
-				cn: "返回「选择乐曲」",
-				tw: "返回「選擇樂曲」",
-				ko: "「곡 선택」으로"
+			dc: {
+				ja: "ドンダフルコンボ",
+				en: "Donderful Combo",
+				cn: "全良",
+				tw: "全良",
+				ko: "돈다풀 콤보"
 			}
 		},
 		easierBigNotes: {

@@ -152,8 +152,8 @@ def test_genre_order_matches_the_old_category_order(wheel):
     shape = wheel.page.evaluate("""() => {
         const items = __ss.navigator.items
         return {
-            // genre folders only; collections like favorites sit after
-            // them and are not categories
+            // genre folders only; collections like favorites carry a
+            // folder too but are not categories
             genres: items.filter(i => i.folder && i.folder.id.startsWith("genre:"))
                          .map(i => i.originalCategory),
             actions: items.filter(i => i.action && i.action !== "folder").map(i => i.action),
@@ -163,7 +163,13 @@ def test_genre_order_matches_the_old_category_order(wheel):
     assert shape["genres"][-1] == "創作譜面"
     # How to Play and About are no longer at the root: both are read once
     # and never again, and every entry there is a press to scroll past.
-    assert shape["actions"] == ["random", "search", "diffSort", "settings"]
+    #
+    # Favourites and Recently Played are "collection": they open into a
+    # folder like a genre does, but they are ways of picking a song out of
+    # the library rather than divisions of it, so they are drawn as slats
+    # with the rest of these and sit where they always did.
+    assert shape["actions"] == ["collection", "collection", "random",
+                                "search", "diffSort", "settings"]
 
 # What toSelectDifficulty actually does with each kind of entry during a
 # session, rather than what the predicate returns. Testing only the

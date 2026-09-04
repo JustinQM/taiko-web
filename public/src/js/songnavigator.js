@@ -282,9 +282,14 @@ class SongNavigator{
 			category: spec.title,
 			originalCategory: folder.originalCategory,
 			skin: spec.skin,
-			action: "folder",
-			folder: folder,
-			canJump: true
+			// Drawn as a slat rather than a folder block, and opened like
+			// one all the same. A genre folder is a division of the
+			// library and earns the width; these are ways of picking a
+			// song out of it, and belong with Random and Search. The
+			// wheel decides that on the action alone, so it is enough to
+			// carry the folder without being called one.
+			action: "collection",
+			folder: folder
 		}
 	}
 	
@@ -565,7 +570,6 @@ class SongNavigator{
 					: []
 			})
 			diffSort.action = "diffSort"
-			delete diffSort.canJump
 			items.push(diffSort)
 		}
 		// How to Play and About are read once and never again, and at the

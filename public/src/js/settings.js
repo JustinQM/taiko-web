@@ -34,23 +34,14 @@ class Settings{
 			// One row that opens to reveal what a miss should do. There
 			// is no entry for a GOOD: stopping the song when you play a
 			// note correctly is not a mode anyone wants.
+			// One row, and what it means is the run you are asking for
+			// rather than a table of what to do about each judgement. A
+			// full combo cannot survive a bad, a donderful cannot survive
+			// an ok either, and in both cases the answer is to start over.
 			spartanMode: {
-				type: "submenu",
-				children: ["spartanOk", "spartanBad"]
-			},
-			spartanOk: {
 				type: "select",
-				options: ["continue", "results", "retry", "back_to_select_song"],
-				default: "continue",
-				parent: "spartanMode",
-				indent: 1
-			},
-			spartanBad: {
-				type: "select",
-				options: ["continue", "results", "retry", "back_to_select_song"],
-				default: "continue",
-				parent: "spartanMode",
-				indent: 1
+				options: ["off", "fc", "dc"],
+				default: "off"
 			},
 			tjaTitle: {
 				type: "select",
