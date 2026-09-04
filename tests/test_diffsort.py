@@ -415,3 +415,81 @@ def test_it_draws_without_error_on_every_screen(wheel):
     press(wheel, "select")
     wheel.page.wait_for_timeout(400)
     assert wheel.errors == []
+
+
+# ------------------------------------------------------------- the crowns
+
+
+def test_the_counts_are_cumulative(wheel):
+    """A full combo is a clear, and a donderful is both.
+
+    The panel shows three rows and each is a subset of the one above it,
+    so a chart you full comboed is counted in the clears too. Seeded
+    rather than read, because a fresh profile has no crowns at all and
+    three zeroes would pass anything.
+    """
+    seeded = wheel.page.evaluate("""() => {
+        const songs = assets.songs.filter(s => s.courses.oni && s.courses.oni.stars === 10)
+        const n = {silver: 0, gold: 0, rainbow: 0}
+        songs.forEach((s, i) => {
+            const kind = i % 7 === 0 ? "rainbow" : i % 3 === 0 ? "gold"
+                       : i % 2 === 0 ? "silver" : null
+            if(!kind) return
+            n[kind]++
+            scoreStorage.scores[s.hash] = Object.assign(
+                scoreStorage.scores[s.hash] || {}, {oni: {crown: kind}})
+        })
+        return n
+    }""")
+    assert seeded["rainbow"] > 0 and seeded["gold"] > 0 and seeded["silver"] > 0
+
+    cell = wheel.page.evaluate("""() => {
+        const c = __ss.navigator.diffSortStats()[3][10]
+        return {total: c.total, clears: c.clears,
+                fullCombos: c.fullCombos, donderfuls: c.donderfuls}
+    }""")
+    assert cell["donderfuls"] == seeded["rainbow"]
+    assert cell["fullCombos"] == seeded["gold"] + seeded["rainbow"]
+    assert cell["clears"] == seeded["silver"] + seeded["gold"] + seeded["rainbow"]
+    assert cell["clears"] >= cell["fullCombos"] >= cell["donderfuls"]
+    assert cell["clears"] <= cell["total"]
+
+
+def test_a_courses_totals_carry_the_donderfuls_too(wheel):
+    """The summed-over-levels view the difficulty boxes stand on."""
+    wheel.page.evaluate("""() => {
+        assets.songs.filter(s => s.courses.oni).slice(0, 30).forEach(s => {
+            scoreStorage.scores[s.hash] = Object.assign(
+                scoreStorage.scores[s.hash] || {}, {oni: {crown: "rainbow"}})
+        })
+    }""")
+    open_picker(wheel)
+    press(wheel, "right", 4)
+    sums = wheel.page.evaluate("""() => {
+        const p = __ss.diffSortSelect
+        const course = p.courseStats[3]
+        const rolled = p.stats[3].reduce((a, c) => ({
+            clears: a.clears + c.clears,
+            fullCombos: a.fullCombos + c.fullCombos,
+            donderfuls: a.donderfuls + c.donderfuls
+        }), {clears: 0, fullCombos: 0, donderfuls: 0})
+        return {course: {clears: course.clears, fullCombos: course.fullCombos,
+                         donderfuls: course.donderfuls}, rolled: rolled}
+    }""")
+    assert sums["course"]["donderfuls"] > 0, "the seeded donderfuls did not reach the panel"
+    assert sums["course"] == sums["rolled"]
+
+
+def test_the_panel_draws_three_crown_rows(wheel):
+    """Three rows where the skin's artwork has two, so they are laid out
+    here -- and they have to stay inside the panel's frame."""
+    box = wheel.page.evaluate("""() => {
+        const P = DiffSortSelect.panel
+        return {lastRowBottom: P.rowTop + 2 * P.rowPitch + P.rowPitch,
+                countRight: P.countRight, overRight: P.overRight,
+                panelRight: DiffSortSelect.panelRight}
+    }""")
+    # the panel's frame is drawn to y 427 and x 252
+    assert box["lastRowBottom"] <= 427, "the third row hangs out of the panel"
+    assert box["overRight"] <= box["panelRight"], "the totals run past the frame"
+    assert box["countRight"] < box["overRight"]

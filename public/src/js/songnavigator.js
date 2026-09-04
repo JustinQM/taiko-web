@@ -342,7 +342,7 @@ class SongNavigator{
 		var stats = courses.map(() => {
 			var levels = []
 			for(var i = 0; i <= ceiling; i++){
-				levels.push({total: 0, clears: 0, fullCombos: 0})
+				levels.push({total: 0, clears: 0, fullCombos: 0, donderfuls: 0})
 			}
 			return levels
 		})
@@ -367,11 +367,16 @@ class SongNavigator{
 				if(!crown){
 					continue
 				}
+				// Cumulative, and deliberately so: a crown counts in its
+				// own row and in every row above it, because a full combo
+				// is a clear and a donderful is both. YataiDON counts its
+				// two rows this way and the leaderboard now does too.
 				cell.clears++
-				// silver is a clear and nothing more; gold and rainbow are
-				// both full combos, which is the split YataiDON draws.
 				if(crown !== "silver"){
 					cell.fullCombos++
+				}
+				if(crown === "rainbow"){
+					cell.donderfuls++
 				}
 			}
 		})

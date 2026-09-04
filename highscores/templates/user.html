@@ -19,7 +19,7 @@
       <div class="stats" style="margin-top:14px">
         <div class="stat"><b>{{ "{:,}".format(u.plays) }}</b><span>Charts played</span></div>
         <div class="stat"><b>{{ u.firsts }}</b><span>First places</span></div>
-        <div class="stat"><b>{{ u.crowns.rainbow + u.crowns.gold + u.crowns.silver }}</b><span>Crowns</span></div>
+        <div class="stat"><b>{{ u.crowns.silver }}</b><span>Crowned charts</span></div>
       </div>
     </div>
   </div>
@@ -112,7 +112,7 @@
     {% for d in DIFFICULTIES %}
       {% if u.per_diff.get(d) and u.per_diff[d].plays %}
         {{ ui.diff_link(d,
-             ui.filter_url(base, none if diff_filter == d else d, crown_filter),
+             ui.filter_url(base, none if diff_filter == d else d, crown_filter, crown_only),
              "on" if diff_filter == d else "") }}
       {% endif %}
     {% endfor %}
@@ -121,9 +121,22 @@
        href="{{ ui.filter_url(base, diff_filter, none if crown_filter == 'any' else 'any') }}">Any crown</a>
     {% for kind, _ in crowns %}
       <a class="tag {{ 'on' if crown_filter == kind }}"
-         href="{{ ui.filter_url(base, diff_filter, none if crown_filter == kind else kind) }}">
+         href="{{ ui.filter_url(base, diff_filter, none if crown_filter == kind else kind, crown_only) }}">
         {{ ui.crown(kind) }}{{ CROWN_LABEL[kind] }}</a>
     {% endfor %}
+    {#- Crowns count cumulatively, so picking one shows everything at
+        least that good. This narrows it to charts that stopped there,
+        which is the list of what to go back and improve. -#}
+    {% if crown_filter and crown_filter != "any" %}
+      <span class="seg" role="group" aria-label="Crown match">
+        <a class="tag seg-a {{ 'on' if not crown_only }}"
+           href="{{ ui.filter_url(base, diff_filter, crown_filter, false) }}"
+           title="Every chart at least this good">or better</a><a
+           class="tag seg-b {{ 'on' if crown_only }}"
+           href="{{ ui.filter_url(base, diff_filter, crown_filter, true) }}"
+           title="Only charts whose best crown is exactly {{ CROWN_LABEL[crown_filter] }} — what to go back and improve">only this</a>
+      </span>
+    {% endif %}
     {% if diff_filter or crown_filter %}
       <a class="tag clear" href="{{ base }}" style="margin-left:auto">Clear filters ×</a>
     {% endif %}

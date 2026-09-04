@@ -19,6 +19,14 @@ SCORE_KEYS = ["points", "good", "ok", "bad", "maxCombo", "drumroll"]
 CROWNS = ["", "silver", "gold", "rainbow"]
 CROWN_LABEL = {"silver": "Clear", "gold": "Full Combo", "rainbow": "Donderful Combo"}
 
+# A crown implies every crown below it: a Full Combo is a clear, and a
+# Donderful Combo is a full combo and a clear. Tallies below are
+# cumulative because of this, so the three counts are "cleared",
+# "full comboed" and "donderful" rather than three disjoint buckets --
+# which is how the game's own difficulty search counts them, and how a
+# player thinks about them.
+CROWN_IMPLIED = {c: CROWNS[1:i + 2] for i, c in enumerate(CROWNS[1:])}
+
 _client = MongoClient(os.environ.get("MONGO_URL", "mongodb://mongo:27017"))
 db = _client[os.environ.get("MONGO_DB", "taiko")]
 
@@ -211,9 +219,9 @@ def _build():
             if r["rank"] == 1:
                 u["firsts"] += 1
                 d["firsts"] += 1
-            if r["crown"]:
-                u["crowns"][r["crown"]] += 1
-                d["crowns"][r["crown"]] += 1
+            for kind in CROWN_IMPLIED.get(r["crown"], ()):
+                u["crowns"][kind] += 1
+                d["crowns"][kind] += 1
             if song.get("category_id"):
                 u["genres"][song["category_id"]] += 1
 

@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from flask import Flask, abort, jsonify, redirect, render_template, request
 
 import data
-from data import (CROWN_LABEL, DIFF_COLOR, DIFF_LABEL, DIFFICULTIES,
-                  db, recent_events, records, snapshot)
+from data import (CROWN_IMPLIED, CROWN_LABEL, DIFF_COLOR, DIFF_LABEL,
+                  DIFFICULTIES, db, recent_events, records, snapshot)
 
 app = Flask(__name__)
 
@@ -60,17 +60,19 @@ def ago(ts):
     return ts.strftime("%d %b")
 
 
-CROWN_POINTS = {"rainbow": 3, "gold": 2, "silver": 1}
-
-
 def crown_standings(snap, diff=None):
     """Rank players by crowns collected, overall or at one difficulty.
 
-    Crowns are weighted by CROWN_POINTS, so a Donderful Combo is worth
-    three clears and a Full Combo two. That keeps a big pile of clears
-    competitive with a handful of rainbows instead of always losing to
-    them. This is a display ranking only -- data.py owns the real
-    scoring and is left alone.
+    The crown counts are cumulative -- see CROWN_IMPLIED in data.py -- so
+    a chart you full comboed is counted both as a full combo and as a
+    clear, and a donderful counts as all three. Points are then the plain
+    sum of the three, with nothing weighted.
+
+    That comes to the same number the old weighting did, since counting a
+    donderful once in each of three rows is what multiplying it by three
+    was standing in for. It says it in a way a player can check, though:
+    the score is the crowns, added up, rather than the crowns put through
+    a table of what each is worth.
 
     The overall average place is an exact pooled mean, not an
     approximation: data.py divides each difficulty's total by its pool
@@ -99,8 +101,10 @@ def crown_standings(snap, diff=None):
 
         rows.append({
             "name": u["name"], "crowns": crowns,
-            "total": sum(crowns[k] for k in CROWN_POINTS),
-            "points": sum(crowns[k] * pts for k, pts in CROWN_POINTS.items()),
+            # Every crown is at least a clear, so the clears are the count
+            # of crowned charts.
+            "total": crowns["silver"],
+            "points": sum(crowns.values()),
             "plays": plays, "pool": pool, "firsts": firsts, "avg_rank": avg,
             "coverage": plays / pool * 100 if pool else 0.0,
         })
@@ -205,6 +209,12 @@ def user(name):
 
     diff_filter = request.args.get("diff")
     crown_filter = request.args.get("crown")
+    # "or better" by default, matching the cumulative counts these links
+    # are clicked from. "only" narrows to charts whose best crown is
+    # exactly this one, which is the list of what to go back and improve:
+    # a clear you have not full comboed, a full combo you have not made
+    # donderful.
+    crown_only = request.args.get("crown_mode") == "only"
 
     plays = []
     for (h, d), board in snap["boards"].items():
@@ -216,8 +226,12 @@ def user(name):
         if crown_filter == "any":
             if not row["crown"]:
                 continue
-        elif crown_filter and row["crown"] != crown_filter:
-            continue
+        elif crown_filter:
+            if crown_only:
+                if row["crown"] != crown_filter:
+                    continue
+            elif crown_filter not in CROWN_IMPLIED.get(row["crown"], ()):
+                continue
         song = snap["songs"][h]
         plays.append({"song": song, "diff": d, "players": len(board),
                       "cat": snap["cats"].get(song.get("category_id")) or {},
@@ -233,7 +247,8 @@ def user(name):
             genres.append({"cat": cat, "count": n})
 
     return render_template("user.html", nav="user", u=u, plays=plays, genres=genres,
-                           diff_filter=diff_filter, crown_filter=crown_filter)
+                           diff_filter=diff_filter, crown_filter=crown_filter,
+                           crown_only=crown_only)
 
 
 # -------------------------------------------------------------------- api

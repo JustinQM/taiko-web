@@ -100,9 +100,12 @@
 
 {# Build a player-page filter URL. Pass none for a dimension to clear it,
    which is what makes each chip a toggle. #}
-{% macro filter_url(base, diff=None, crown=None) -%}
+{% macro filter_url(base, diff=None, crown=None, only=False) -%}
 {%- set parts = [] -%}
 {%- if diff %}{% set _ = parts.append("diff=" ~ diff) %}{% endif -%}
 {%- if crown %}{% set _ = parts.append("crown=" ~ crown) %}{% endif -%}
+{#- only means "exactly this crown"; it says nothing without one, and
+    nothing about "any crown" either -#}
+{%- if crown and crown != "any" and only %}{% set _ = parts.append("crown_mode=only") %}{% endif -%}
 {{- base }}{{ "?" ~ parts|join("&") if parts else "" -}}
 {%- endmacro %}

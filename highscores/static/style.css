@@ -999,3 +999,12 @@ a.tag.clear:hover { border-color: var(--accent); color: var(--accent-2); }
   h1 { font-size: 24px; }
   .acc { min-width: 44px; }
 }
+
+/* The crown match toggle: two tags joined into one control, so "or
+   better" and "only this" read as a pair of settings for the crown
+   beside them rather than as two more crowns to pick from. */
+.seg { display: inline-flex; }
+.seg .tag { border-radius: 0; margin: 0; }
+.seg .seg-a { border-radius: 999px 0 0 999px; }
+.seg .seg-b { border-radius: 0 999px 999px 0; border-left: 0; }
+.seg .tag.on { background: var(--panel-3); color: var(--ink); border-color: var(--line-2); }

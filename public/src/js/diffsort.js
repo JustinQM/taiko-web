@@ -110,6 +110,29 @@ class DiffSortSelect{
 	static panelRight = 252
 
 	/*
+	 * The panel below its header box, which the skin no longer draws.
+	 *
+	 * The skin has two crown rows at a pitch of fifty and no room for a
+	 * third; these are three at thirty-five, which is what fits between
+	 * the header box (ending at 271) and the bottom of the frame (at
+	 * 427). The total above them moves up a little to pay for it, and the
+	 * counts are drawn smaller than the skin's to sit in a shorter row.
+	 */
+	static panel = {
+		totalShift: -6,
+		rowTop: 314,
+		rowPitch: 35,
+		rowMiddle: 16,
+		crownX: 62,
+		crownSize: 34,
+		countRight: 165,
+		countScale: 0.75,
+		slashX: 190,
+		overRight: 242,
+		overDrop: 10
+	}
+
+	/*
 	 * prev is the last search this session made, which box 5 repeats.
 	 * Null before there has been one, in which case that box cancels --
 	 * which is what YataiDON's {-1, -1} does there too.
@@ -138,11 +161,12 @@ class DiffSortSelect{
 		// shows while the cursor is still on the difficulty boxes.
 		// YataiDON sums these once in its own constructor too.
 		this.courseStats = this.stats.map(levels => {
-			var sum = {total: 0, clears: 0, fullCombos: 0}
+			var sum = {total: 0, clears: 0, fullCombos: 0, donderfuls: 0}
 			levels.forEach(cell => {
 				sum.total += cell.total
 				sum.clears += cell.clears
 				sum.fullCombos += cell.fullCombos
+				sum.donderfuls += cell.donderfuls
 			})
 			return sum
 		})
@@ -354,7 +378,9 @@ class DiffSortSelect{
 		if(!img || !img.naturalWidth){
 			return
 		}
-		var pos = DiffSortSelect.pos[name]
+		// The panel's rows are laid out here rather than taken from the
+		// skin, so they say where they go instead of offsetting from it.
+		var pos = config.at || DiffSortSelect.pos[name]
 		if(Array.isArray(pos)){
 			pos = pos[config.index || 0]
 		}
@@ -467,6 +493,8 @@ class DiffSortSelect{
 			}
 			this.tex(ctx, name, {
 				index: config.index,
+				at: config.at,
+				scale: config.scale,
 				crop: {x: cell.w * digit, w: cell.w, h: cell.h},
 				x: (config.x || 0) + (config.spacing || 0) * i,
 				y: config.y || 0,
@@ -518,10 +546,12 @@ class DiffSortSelect{
 			})
 			var cell = this.cell(this.selectedBox, this.selectedLevel)
 		}else{
-			var cell = this.courseStats[this.selectedBox] || {total: 0, clears: 0, fullCombos: 0}
+			var cell = this.courseStats[this.selectedBox]
+				|| {total: 0, clears: 0, fullCombos: 0, donderfuls: 0}
 		}
 
-		this.centeredNumber(ctx, "stat_num", cell.total, DiffSortSelect.margin2)
+		this.centeredNumber(ctx, "stat_num", cell.total, DiffSortSelect.margin2,
+			{y: DiffSortSelect.panel.totalShift})
 		// Where the skin wrote 全 N 曲 the kanji have been cleared out of
 		// the overlay, so the count is labeled here instead. The two
 		// crown rows below it are "N / N" either way and need no word.
@@ -537,17 +567,70 @@ class DiffSortSelect{
 		var room = DiffSortSelect.panelRight - right - 12
 		this.label(ctx, strings.diffSort.songs, {
 			x: this.frameLeft + right + 6 + room / 2,
-			y: this.frameTop + overlay.y + 141,
+			y: this.frameTop + overlay.y + 141 + DiffSortSelect.panel.totalShift,
 			size: 20,
 			width: room
 		})
-		// The same total twice, once under each of the two counts below
-		// it: they read as "of this many".
-		for(var j = 0; j < 2; j++){
-			this.centeredNumber(ctx, "stat_num_small", cell.total, DiffSortSelect.margin3, {index: j})
-		}
-		this.centeredNumber(ctx, "stat_num_star", cell.fullCombos, DiffSortSelect.margin1, {index: 1})
-		this.centeredNumber(ctx, "stat_num_star", cell.clears, DiffSortSelect.margin1, {index: 2})
+		this.drawCrownRows(ctx, cell)
+	}
+
+	/*
+	 * One row per crown: how many of these charts you have cleared, full
+	 * comboed and donderfulled, each over the total.
+	 *
+	 * The skin draws two rows and bakes their crowns and slashes into the
+	 * overlay. We show three -- a donderful is worth seeing, and the
+	 * counts are cumulative anyway, so a row that is always a subset of
+	 * the one above it reads naturally underneath it. Three rows do not
+	 * fit at the skin's pitch, so the overlay keeps only its header box
+	 * and the rows are laid out here instead.
+	 *
+	 * Cumulative: every crown counts in its own row and in every row
+	 * above. A full combo is a clear, and a donderful is both.
+	 */
+	drawCrownRows(ctx, cell){
+		var P = DiffSortSelect.panel
+		var rows = [
+			{crown: "silver", value: cell.clears},
+			{crown: "gold", value: cell.fullCombos},
+			{crown: "rainbow", value: cell.donderfuls}
+		]
+		var countSpacing = DiffSortSelect.margin1 * P.countScale
+		rows.forEach((row, i) => {
+			var y = P.rowTop + i * P.rowPitch
+			// Through the game's own crown drawing rather than straight
+			// from the image: it picks the right set, and it falls back
+			// to the vector path on a build that has no crown art.
+			this.songSelect.draw.crown({
+				ctx: ctx,
+				type: row.crown,
+				variant: "small",
+				x: this.frameLeft + P.crownX,
+				y: this.frameTop + y + P.rowMiddle,
+				size: P.crownSize,
+				ratio: this.songSelect.ratio / this.songSelect.pixelRatio
+			})
+			// The count and the total it is out of, both right-aligned so
+			// the three rows line up however many digits they run to.
+			var count = String(row.value)
+			this.number(ctx, "stat_num_star", count, {
+				at: {x: P.countRight - count.length * countSpacing, y: y},
+				spacing: countSpacing,
+				scale: P.countScale
+			})
+			this.label(ctx, "/", {
+				x: this.frameLeft + P.slashX,
+				y: this.frameTop + y + P.rowMiddle,
+				size: 22,
+				width: 20
+			})
+			var total = String(cell.total)
+			this.number(ctx, "stat_num_small", total, {
+				at: {x: P.overRight - total.length * DiffSortSelect.margin3,
+					y: y + P.overDrop},
+				spacing: DiffSortSelect.margin3
+			})
+		})
 	}
 
 	/*
@@ -579,7 +662,7 @@ class DiffSortSelect{
 	cell(course, level){
 		var levels = this.stats[course]
 		var cell = levels && levels[level]
-		return cell || {total: 0, clears: 0, fullCombos: 0}
+		return cell || {total: 0, clears: 0, fullCombos: 0, donderfuls: 0}
 	}
 
 	drawDiffSelect(ctx, ms){
