@@ -352,6 +352,13 @@
         '#hs .hs-delta.hs-down{color:var(--ink-3)}',
         '#hs .hs-row.hs-cmp .hs-pts{font-size:12px;color:var(--ink-2)}',
         '#hs .hs-row.hs-cmp .hs-user{gap:6px}',
+        /* A run standing where it would land, rather than an entry that is
+           there: dashed and unfilled, so it reads as a place being held
+           open next to the solid rows around it. */
+        '#hs .hs-row.hs-provisional{border-top:0;padding-top:1px}',
+        '#hs .hs-row.hs-provisional .hs-pts{color:var(--ink)}',
+        '#hs .hs-rank.hs-prov{background:transparent;color:var(--ink-3);',
+        ' border:1px dashed var(--line-2);box-shadow:none}',
         '#hs .hs-badge{flex:none;font:700 8.5px/1 var(--sans);letter-spacing:.09em;',
         ' text-transform:uppercase;padding:3px 6px;border-radius:999px;white-space:nowrap}',
         '#hs .hs-badge.hs-first{color:#3a2600;',
@@ -570,20 +577,40 @@
                     '</div>';
 
             var played = mark && k === mark.diff;
-            var placed = false;
             if (!rows.length && !played) {
                 html += '<div class="hs-empty">Unclaimed</div>';
             } else {
-                rows.forEach(function (r) {
+                /* Where the run just played would sit, by points.
+                   It used to be pinned directly under their own row, which
+                   put a run that beat everything below the entry it beat.
+                   It goes where it belongs instead -- above what it beats,
+                   below what beat it -- and a run that lost to their own
+                   best sits at the place that worse score earns, which is
+                   the honest answer to "where would that have put me".
+
+                   Only while it has not landed. Once it has, the board row
+                   IS the run, and what is worth showing under it is the
+                   score it replaced. */
+                var pendingAt = -1;
+                if (played && !mark.landed) {
+                    pendingAt = rows.length;
+                    for (var i = 0; i < rows.length; i++) {
+                        if (mark.points > rows[i].points) { pendingAt = i; break; }
+                    }
+                }
+                // The board is fetched five deep. Past that the rank is not
+                // ours to state, so the row goes last without one.
+                var haveAll = rows.length >= (b.players || 0);
+                rows.forEach(function (r, i) {
+                    if (i === pendingAt) html += compareRow(mark, i + 1);
                     html += row(r, k, mark);
-                    // the comparison belongs directly under their own row
-                    if (played && r.user === mark.user) {
-                        html += compareRow(mark);
-                        placed = true;
+                    if (played && mark.landed && r.user === mark.user) {
+                        html += compareRow(mark, 0);
                     }
                 });
-                // no entry of theirs on this board yet
-                if (played && !placed) html += compareRow(mark);
+                if (pendingAt === rows.length) {
+                    html += compareRow(mark, haveAll ? rows.length + 1 : 0);
+                }
             }
             html += '</div>';
         });
@@ -638,7 +665,7 @@
        taiko-web never overwrites a better score, so a run that loses to
        the existing entry will never appear on the board -- it still gets
        shown here rather than being dropped or left spinning as pending. */
-    function compareRow(mark) {
+    function compareRow(mark, rank) {
         var prev = mark.previousRow;
         var showing = mark.landed ? prev : mark.run;
         if (!showing) return "";
@@ -647,18 +674,32 @@
         var delta = prev ? mark.points - prev.points : null;
         var bits = '<span class="hs-cmplabel">' + label + "</span>";
 
+        // Against their own best, whichever way it went. This is the one
+        // number the board itself cannot show them.
         if (delta !== null && delta !== 0) {
             bits += '<span class="hs-delta ' + (delta > 0 ? "hs-up" : "hs-down") + '">' +
                     (delta > 0 ? "+" : "\u2212") + money(Math.abs(delta)) + "</span>";
-        } else if (!prev) {
+        } else if (!prev && !mark.guest) {
             bits += '<span class="hs-cmplabel">first score</span>';
         }
-        if (!mark.landed && mark.willLand) {
-            bits += '<span class="hs-badge hs-pending">Pending</span>';
+        // Whether it is on its way onto the board or was beaten by what is
+        // already there. taiko-web keeps the better score, so a lesser run
+        // is never saved -- say so rather than leaving it looking pending
+        // forever.
+        // Why it is not on the board: on its way there, beaten by what is
+        // already there, or nobody to attribute it to. taiko-web keeps the
+        // better score, so a lesser run is never saved -- saying "pending"
+        // about it would be a promise that is never kept.
+        if (!mark.landed) {
+            bits += '<span class="hs-badge hs-pending">' +
+                    (mark.guest ? "Not signed in"
+                                : mark.willLand ? "Pending" : "Not saved") +
+                    "</span>";
         }
 
-        var total = showing.good + showing.ok + showing.bad;
-        var out = '<div class="hs-row hs-cmp">';
+        var out = '<div class="hs-row hs-cmp' +
+                  (mark.landed ? "" : " hs-provisional") + '">';
+        out += '<span class="hs-rank hs-prov">' + (rank || "") + "</span>";
         out += '<span class="hs-user">' + bits + "</span>";
         out += '<span class="hs-pts">' + money(showing.points) + "</span>";
         out += '<span class="hs-meta">' +
@@ -673,6 +714,9 @@
     function showResults(d) {
         var sel = d && d.selectedSong;
         var res = d && d.results && d.results[0];
+        // sel is the object song select hands the loader, not a song from
+        // the API: its "folder" is the song id under an older name, which
+        // is what /api/song/<int:song_id> wants.
         if (!sel || !sel.folder) return;
 
         var id = sel.folder;
@@ -684,19 +728,28 @@
 
         var me = playerName();
         var mark = null;
-        // An autoplay run is never saved, and in multiplayer the payload
-        // does not say which side is the local player, so neither gets
-        // attributed to anyone.
-        if (me && res && !d.autoPlayEnabled && !d.multiplayer) {
+        // An autoplay run is not a run, and in multiplayer the payload does
+        // not say which side is the local player, so neither is shown.
+        //
+        // Not being signed in is no reason to hide it, though. It used to
+        // be: without a name there is no row on the board to match against,
+        // and the whole comparison was skipped along with it. But "where
+        // would that have put me" is the question this panel exists to
+        // answer, and it is a fair question to ask as a guest -- there is
+        // simply no previous best to measure against, and nowhere for the
+        // score to land.
+        if (res && !d.autoPlayEnabled && !d.multiplayer) {
             var good = num(res.good), ok = num(res.ok), bad = num(res.bad);
             var total = good + ok + bad;
             mark = {
                 diff: sel.difficulty,
                 user: me,
+                guest: !me,
                 points: num(res.points),
                 landed: false,
                 improved: false,
-                willLand: true,
+                // A guest's score reaches nobody's leaderboard.
+                willLand: !!me,
                 previousRow: null,
                 run: {
                     rank: 0, user: me, points: num(res.points),
